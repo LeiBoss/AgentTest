@@ -8,3 +8,5 @@ PyYAML>=6.0
 pytest>=8.0
 fastapi>=0.110
 uvicorn>=0.27
+baostock>=0.8
+adata>=2.0

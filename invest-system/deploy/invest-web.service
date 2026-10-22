@@ -8,7 +8,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/invest-system
 EnvironmentFile=-/home/ubuntu/invest-system/.env
-Environment=SYMBOL=600519.SH
+Environment=SYMBOL=600519
 ExecStart=/home/ubuntu/invest-system/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=10
