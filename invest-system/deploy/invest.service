@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=ubuntu
-WorkingDirectory=/home/ubuntu/invest-system
-EnvironmentFile=-/home/ubuntu/invest-system/.env
-Environment=CHAIN_YAML=/home/ubuntu/invest-system/config/chains/baijiu.yaml
-Environment=SYMBOL=600519.SH
-ExecStart=/home/ubuntu/invest-system/.venv/bin/python main.py
+User=root
+WorkingDirectory=/root/invest-system
+EnvironmentFile=-/root/invest-system/.env
+Environment=CHAIN_YAML=/root/invest-system/config/chains/baijiu.yaml
+Environment=SYMBOL=600519
+ExecStart=/root/invest-system/.venv/bin/python main.py
 Restart=on-failure
 RestartSec=60
 
