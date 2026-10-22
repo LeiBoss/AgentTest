@@ -16,7 +16,7 @@ def _trigger(**overrides: Any) -> Trigger:
         "id": "T01",
         "name": "批价",
         "layer": "price",
-        "lead": "leading",
+        "lead": "lead",
         "freq": "weekly",
         "src": "akshare",
         "unit": "元",
