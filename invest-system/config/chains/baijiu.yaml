@@ -82,7 +82,7 @@ triggers:
     layer: fin
     lead: lag
     freq: 季
-    src: 上市公司季报
+    src: 财报
     unit: "%"
     normal_range: [0, 20]
     warn_range: [-10, 0]
@@ -94,7 +94,7 @@ triggers:
     layer: fin
     lead: lag
     freq: 季
-    src: 上市公司季报
+    src: 财报
     unit: "%"
     normal_range: [15, 40]
     warn_range: [8, 15]
@@ -106,7 +106,7 @@ triggers:
     layer: supply
     lead: sync
     freq: 月
-    src: 酒企公告与渠道调研
+    src: 渠道调研
     unit: "%"
     normal_range: [0, 15]
     warn_range: [-10, 0]
@@ -130,7 +130,7 @@ triggers:
     layer: price
     lead: lead
     freq: 周
-    src: 电商比价
+    src: 渠道调研
     unit: 元/瓶
     normal_range: [0, 100]
     warn_range: [100, 250]
