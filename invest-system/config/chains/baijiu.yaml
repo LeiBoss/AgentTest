@@ -139,16 +139,16 @@ triggers:
     meaning: 电商价差超过 250 元后低价货源冲击批价，传导至渠道单瓶利润收缩与打款意愿下降；区间待人工标定。
 
 rules:
-  - cond: wholesale_price < 2200 AND channel_inv > 2.5
+  - cond: wholesale_price 非正常 AND channel_inv 非正常
     res: 渠道进入被动去库存
     rationale: 批价下跌叠加库存高位才是渠道亏损甩货的确认信号，单看批价可能只是酒企控量挺价。
-  - cond: channel_profit < 50 AND contract_liab < 0
+  - cond: channel_profit 非正常 AND contract_liab 非正常
     res: 酒企报表下修风险上升
     rationale: 渠道利润压缩与预收款减少同时出现，说明终端压力已越过渠道传导到报表。
-  - cond: banquet < 60 AND ecom_price > 250
+  - cond: banquet 非正常 AND ecom_price 非正常
     res: 需求与价格体系双弱
     rationale: 宴席恢复不足削弱真实需求，电商价差扩大破坏价格体系，两项同向才构成需求侧确认。
-  - cond: shipment < 0 AND advance_receipt < 8
+  - cond: shipment 非正常 AND advance_receipt 非正常
     res: 发货与回款背离
     rationale: 发货增速转负同时预收款占比处于低位，说明渠道既不愿打款也卖不动，酒企报表将同步下修。
 
