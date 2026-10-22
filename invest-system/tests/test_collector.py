@@ -46,7 +46,7 @@ def test_collect_writes_metrics(
 ) -> None:
     payload = _all_local(valid_payload)
     payload["triggers"][1]["src"] = "财报"
-    monkeypatch.setattr(collector, "fetch_with_retry", lambda func, **kwargs: _frame())
+    monkeypatch.setitem(collector._FETCHERS, "财报", lambda trigger, symbol: _frame())
 
     result = collect_chain(conn, _config(payload), "600519")
 
@@ -66,13 +66,13 @@ def test_single_failure_does_not_block_others(
     payload["triggers"][2]["src"] = "财报"
     calls: list[str] = []
 
-    def fake(func: Any, **kwargs: Any) -> pd.DataFrame:
+    def fake(trigger: Any, symbol: str) -> pd.DataFrame:
         calls.append("call")
         if len(calls) == 1:
             raise RuntimeError("接口超时")
         return _frame()
 
-    monkeypatch.setattr(collector, "fetch_with_retry", fake)
+    monkeypatch.setitem(collector._FETCHERS, "财报", fake)
 
     result = collect_chain(conn, _config(payload), "600519")
 
@@ -112,7 +112,6 @@ def test_unknown_source_raises(
 ) -> None:
     payload = _all_local(valid_payload)
     payload["triggers"][0]["src"] = "未接入来源"
-    monkeypatch.setattr(collector, "fetch_with_retry", lambda func, **kwargs: _frame())
 
     with pytest.raises(NotImplementedError, match="未支持的数据源"):
         collect_chain(conn, _config(payload), "600519")
