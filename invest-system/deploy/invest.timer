@@ -1,0 +1,10 @@
+[Unit]
+Description=每天 07:30 触发产业链跟踪任务
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+Persistent=true
+Unit=invest.service
+
+[Install]
+WantedBy=timers.target
