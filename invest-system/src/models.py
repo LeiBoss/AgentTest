@@ -8,15 +8,17 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-Layer = Literal["demand", "supply", "price", "inventory", "margin", "capacity", "policy"]
-Lead = Literal["leading", "coincident", "lagging"]
+Layer = Literal["price", "inv", "fin", "demand", "supply", "margin"]
+Lead = Literal["lead", "sync", "lag"]
 RuleDirection = Literal["above", "below"]
-ChokeType = Literal["technology", "resource", "capacity", "channel", "regulation", "brand"]
+ChokeType = Literal[
+    "technology", "resource", "capacity", "channel", "regulation", "brand", "ecosystem", "crowded"
+]
 ChokeLevel = Literal["high", "medium", "low"]
 ChokeState = Literal["tight", "balanced", "loose"]
 
-# cond 中的大写标识符（如 T01）视为 trigger 引用
-TRIGGER_REF_RE = re.compile(r"\b[A-Z][A-Z0-9_]{1,}\b")
+# cond 中的英文标识符（如 wholesale_price）视为 trigger 引用，大小写不敏感
+TRIGGER_REF_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _OPERATOR_WORDS = frozenset({"AND", "OR", "NOT"})
 
 
@@ -128,12 +130,29 @@ class ChokePoint(BaseModel):
     paradox_note: str | None = None
 
 
+class SkeletonNode(BaseModel):
+    name: str
+    key: bool = False
+    note: str | None = None
+
+
+class ProfitPoolItem(BaseModel):
+    link: str
+    share_pct: float = Field(ge=0, le=100)
+    basis: str
+
+
+class Transmission(BaseModel):
+    chain: list[str] = Field(min_length=1)
+    note: str
+
+
 class ChainConfig(BaseModel):
     chain_name: str = Field(min_length=1)
     wealth_logic: str
-    skeleton: str
-    profit_pool: str
-    transmission: str
+    skeleton: list[SkeletonNode]
+    profit_pool: list[ProfitPoolItem]
+    transmission: Transmission
     triggers: list[Trigger]
     rules: list[Rule]
     agents: list[Agent]
@@ -153,14 +172,15 @@ class ChainConfig(BaseModel):
     @model_validator(mode="after")
     def _check_references(self) -> "ChainConfig":
         valid_ids = {trigger.id for trigger in self.triggers}
+        valid_ids_upper = {trigger_id.upper() for trigger_id in valid_ids}
 
         for index, rule in enumerate(self.rules):
             referenced = {
-                token
-                for token in TRIGGER_REF_RE.findall(rule.cond.upper())
-                if token not in _OPERATOR_WORDS
+                token.upper()
+                for token in TRIGGER_REF_RE.findall(rule.cond)
+                if token.upper() not in _OPERATOR_WORDS
             }
-            missing = sorted(referenced - valid_ids)
+            missing = sorted(referenced - valid_ids_upper)
             if missing:
                 raise ValueError(f"rules[{index}].cond 引用了不存在的 trigger id: {missing}")
 

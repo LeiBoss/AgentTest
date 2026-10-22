@@ -20,7 +20,7 @@ def _trigger(
         "id": trigger_id,
         "name": f"指标{trigger_id}",
         "layer": layer,
-        "lead": "leading",
+        "lead": "sync",
         "freq": "monthly",
         "src": "akshare",
         "unit": unit,
@@ -38,18 +38,31 @@ def valid_payload() -> dict[str, Any]:
     return {
         "chain_name": "白酒",
         "wealth_logic": "品牌溢价与渠道库存周期共同决定利润分配",
-        "skeleton": "上游基酒 → 中游酒企 → 下游渠道 → 终端消费",
-        "profit_pool": "利润集中在高端酒企",
-        "transmission": "批价上行传导至渠道补库，再传导至酒企报表",
+        "skeleton": [
+            {"name": "上游基酒与包材", "key": False, "note": "供给弹性低"},
+            {"name": "中游酒企", "key": True, "note": "定价权集中在头部"},
+            {"name": "下游渠道与终端", "key": False, "note": "承担库存波动"},
+        ],
+        "profit_pool": [
+            {"link": "高端酒企", "share_pct": 55.0, "basis": "估算"},
+            {"link": "区域酒企", "share_pct": 15.0, "basis": "估算"},
+            {"link": "经销商", "share_pct": 15.0, "basis": "估算"},
+            {"link": "基酒与原粮", "share_pct": 8.0, "basis": "估算"},
+            {"link": "包材", "share_pct": 7.0, "basis": "估算"},
+        ],
+        "transmission": {
+            "chain": ["批价", "渠道利润", "打款意愿", "合同负债", "酒企报表"],
+            "note": "批价领先渠道利润，渠道利润领先打款意愿，打款意愿领先报表一个季度",
+        },
         "triggers": [
             _trigger("T01", "demand", "above", (0, 5), (5, 15), (15, 30)),
             _trigger("T02", "demand", "above", (0, 100), (100, 200), (200, 400), "万箱"),
             _trigger("T03", "margin", "above", (0, 30), (30, 50), (50, 80)),
             _trigger("T04", "margin", "below", (15, 30), (8, 15), (0, 8)),
             _trigger("T05", "price", "above", (0, 800), (800, 1000), (1000, 1500), "元"),
-            _trigger("T06", "inventory", "above", (0, 30), (30, 60), (60, 120), "天"),
+            _trigger("T06", "inv", "above", (0, 30), (30, 60), (60, 120), "天"),
             _trigger("T07", "supply", "below", (60, 100), (40, 60), (0, 40)),
-            _trigger("T08", "policy", "above", (0, 40), (40, 70), (70, 100), "指数"),
+            _trigger("T08", "fin", "above", (0, 40), (40, 70), (70, 100), "指数"),
         ],
         "rules": [
             {

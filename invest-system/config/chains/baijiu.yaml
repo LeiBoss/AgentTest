@@ -1,0 +1,242 @@
+chain_name: 白酒
+
+wealth_logic: |
+  白酒的财富集中在高端品牌心智与赤水河产区储能两个卡点：品牌心智决定终端定价权，储能决定高端产能上限，两者共同把行业利润锁在头部酒企。
+  传导路径是批价→渠道单瓶利润→经销商打款意愿→预收款与合同负债→酒企报表收入。批价上行时渠道主动打款并加库存，财富向酒企与囤货渠道集中。
+  批价跌破渠道成本线后，经销商转为甩货回款，库存与价格压力反向传导，财富由渠道向现金流充裕的头部酒企转移；储能越稀缺，渠道越愿意提前打款锁定配额。
+
+skeleton:
+  - name: 上游
+    key: false
+    note: 原粮、包材与基酒酿造，产能受产区与窖池时间限制
+  - name: 中游
+    key: true
+    note: 酒企掌握品牌与配额分配权，是利润和现金流的汇聚点
+  - name: 下游
+    key: false
+    note: 经销商、烟酒店、电商与宴席终端，承担库存和价格波动
+
+profit_pool:
+  - link: 高端酒企
+    share_pct: 52
+    basis: 估算
+  - link: 区域酒企
+    share_pct: 16
+    basis: 估算
+  - link: 经销商
+    share_pct: 16
+    basis: 估算
+  - link: 基酒与原粮
+    share_pct: 8
+    basis: 估算
+  - link: 包材
+    share_pct: 4
+    basis: 估算
+  - link: 电商与零售终端
+    share_pct: 4
+    basis: 估算
+
+transmission:
+  chain: [批价, 渠道利润, 打款意愿, 合同负债, 酒企报表]
+  note: 批价领先渠道利润约 1-2 周，渠道利润领先打款意愿约 1 个月，打款意愿领先合同负债约 1 个季度，合同负债领先报表收入 1-2 个季度；渠道库存是反向滞后变量。
+
+triggers:
+  - id: wholesale_price
+    name: 飞天散瓶批价
+    layer: price
+    lead: sync
+    freq: 周
+    src: 渠道调研
+    unit: 元/瓶
+    normal_range: [2400, 3000]
+    warn_range: [2200, 2400]
+    crit_range: [0, 2200]
+    rule: below
+    meaning: 批价跌破 2400 元后渠道单瓶利润被压缩，先传导至经销商打款意愿，再传导至合同负债走弱。
+  - id: channel_profit
+    name: 渠道单瓶利润
+    layer: margin
+    lead: sync
+    freq: 周
+    src: 渠道调研
+    unit: 元/瓶
+    normal_range: [150, 400]
+    warn_range: [50, 150]
+    crit_range: [0, 50]
+    rule: below
+    meaning: 单瓶利润跌破 50 元后经销商不愿垫资，传导至打款意愿下降与合同负债收缩。
+  - id: channel_inv
+    name: 经销商库存月数
+    layer: inv
+    lead: lag
+    freq: 月
+    src: 渠道调研
+    unit: 月
+    normal_range: [0, 1.5]
+    warn_range: [1.5, 2.5]
+    crit_range: [2.5, 4]
+    rule: above
+    meaning: 库存超过 2.5 个月后经销商被迫降价出货，传导至批价承压与酒企发货节奏下修。
+  - id: contract_liab
+    name: 合同负债环比
+    layer: fin
+    lead: lag
+    freq: 季
+    src: 上市公司季报
+    unit: "%"
+    normal_range: [0, 20]
+    warn_range: [-10, 0]
+    crit_range: [-30, -10]
+    rule: below
+    meaning: 合同负债环比转负说明预收款减少，传导至下一个季度报表收入增速下修；区间待人工标定。
+  - id: advance_receipt
+    name: 预收款占营收比重
+    layer: fin
+    lead: lag
+    freq: 季
+    src: 上市公司季报
+    unit: "%"
+    normal_range: [15, 40]
+    warn_range: [8, 15]
+    crit_range: [0, 8]
+    rule: below
+    meaning: 预收款占营收比重跌破 8% 说明经销商不愿提前打款，传导至未来两个季度报表增速下修；区间待人工标定。
+  - id: shipment
+    name: 酒企发货增速
+    layer: supply
+    lead: sync
+    freq: 月
+    src: 酒企公告与渠道调研
+    unit: "%"
+    normal_range: [0, 15]
+    warn_range: [-10, 0]
+    crit_range: [-30, -10]
+    rule: below
+    meaning: 发货增速转负后渠道库存被动上升，传导至批价下行与经销商利润收缩；区间待人工标定。
+  - id: banquet
+    name: 宴席场景恢复度
+    layer: demand
+    lead: lead
+    freq: 月
+    src: 渠道调研
+    unit: 指数
+    normal_range: [80, 110]
+    warn_range: [60, 80]
+    crit_range: [0, 60]
+    rule: below
+    meaning: 宴席恢复度跌破 60 说明终端动销走弱，传导至渠道补库意愿下降与库存月数上升；区间待人工标定。
+  - id: ecom_price
+    name: 电商价差
+    layer: price
+    lead: lead
+    freq: 周
+    src: 电商比价
+    unit: 元/瓶
+    normal_range: [0, 100]
+    warn_range: [100, 250]
+    crit_range: [250, 600]
+    rule: above
+    meaning: 电商价差超过 250 元后低价货源冲击批价，传导至渠道单瓶利润收缩与打款意愿下降；区间待人工标定。
+
+rules:
+  - cond: wholesale_price < 2200 AND channel_inv > 2.5
+    res: 渠道进入被动去库存
+    rationale: 批价下跌叠加库存高位才是渠道亏损甩货的确认信号，单看批价可能只是酒企控量挺价。
+  - cond: channel_profit < 50 AND contract_liab < 0
+    res: 酒企报表下修风险上升
+    rationale: 渠道利润压缩与预收款减少同时出现，说明终端压力已越过渠道传导到报表。
+  - cond: banquet < 60 AND ecom_price > 250
+    res: 需求与价格体系双弱
+    rationale: 宴席恢复不足削弱真实需求，电商价差扩大破坏价格体系，两项同向才构成需求侧确认。
+  - cond: shipment < 0 AND advance_receipt < 8
+    res: 发货与回款背离
+    rationale: 发货增速转负同时预收款占比处于低位，说明渠道既不愿打款也卖不动，酒企报表将同步下修。
+
+agents:
+  - name: 渠道监测
+    role: 跟踪批价、渠道利润、库存与电商价差
+    triggers: [wholesale_price, channel_profit, channel_inv, ecom_price]
+  - name: 报表验证
+    role: 用季报验证渠道信号是否传导到报表
+    triggers: [contract_liab, advance_receipt, shipment]
+  - name: 阶段定位
+    role: 结合指标组合判断当前所处的周期阶段
+    triggers: []
+
+stages:
+  - yr: 2016
+    t: 复苏
+    d: 批价触底回升，渠道开始补库
+    current: false
+  - yr: 2019
+    t: 高端化
+    d: 品牌集中度提升，高端价格带扩容
+    current: false
+  - yr: 2021
+    t: 酱酒热
+    d: 渠道加杠杆囤货，批价与库存同步冲高
+    current: false
+  - yr: 2023
+    t: 去库存
+    d: 批价回落，渠道库存处于高位
+    current: false
+  - yr: 2026
+    t: 磨底
+    d: 库存缓慢去化，需求弱修复
+    current: true
+
+choke_points:
+  - node: 高端品牌心智
+    type: ecosystem
+    score:
+      switchability: 3
+      concentration: 3
+      replicability: 3
+      total: 9
+    level: high
+    current_state: tight
+    profit_share_pct: 55
+    value_accumulation_trigger: wholesale_price
+    value_transfer_trigger: channel_profit
+    tracking_triggers: [wholesale_price, channel_profit]
+    paradox_flag: false
+    paradox_note: null
+  - node: 赤水河产区基酒储能
+    type: resource
+    score:
+      switchability: 2
+      concentration: 3
+      replicability: 3
+      total: 8
+    level: high
+    current_state: tight
+    profit_share_pct: 25
+    value_accumulation_trigger: shipment
+    value_transfer_trigger: channel_inv
+    tracking_triggers: [shipment, channel_inv, wholesale_price]
+    paradox_flag: true
+    paradox_note: 储能越稀缺，渠道越倾向提前打款囤货，短期放大合同负债与库存波动
+  - node: 包材
+    type: crowded
+    score:
+      switchability: 1
+      concentration: 1
+      replicability: 0
+      total: 2
+    level: low
+    current_state: balanced
+    profit_share_pct: 5
+    value_accumulation_trigger: shipment
+    value_transfer_trigger: shipment
+    tracking_triggers: []
+    paradox_flag: false
+    paradox_note: null
+
+data_gaps:
+  - 渠道库存月数缺分省份、分价格带口径，需人工调研补全
+  - 批价与渠道单瓶利润的区间需按最新渠道调研复核
+  - 合同负债环比阈值区间待人工标定
+  - 预收款占营收比重的历史分位数缺失，区间待人工标定
+  - 酒企发货增速缺统一口径，区间待人工标定
+  - 宴席场景恢复度无公开指数，区间待人工标定
+  - 电商价差缺平台级连续序列，区间待人工标定
