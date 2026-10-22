@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>产业链跟踪</title>
+<style>
+  :root {
+    --bg: #f2f1ee;
+    --card: #ffffff;
+    --primary: #1a3a52;
+    --text: #23231f;
+    --muted: #7a7a72;
+    --line: #e3e2dd;
+    --normal: #1d6b3d;
+    --watch: #a06a14;
+    --alert: #a83b28;
+    --warm: #faf6ec;
+    --soft: #fafaf8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; background: var(--bg); }
+
+  body {
+    color: var(--text);
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    line-height: 1.25;
+  }
+
+  .chain-select {
+    font: inherit;
+    font-size: 15px;
+    color: var(--primary);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+
+  .subtitle {
+    margin: 8px 0 0;
+    max-width: 680px;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .health {
+    display: flex;
+    gap: 16px;
+  }
+
+  .health-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .health-item.ok .dot { background: var(--normal); }
+  .health-item.bad .dot { background: var(--alert); }
+
+  .refresh {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 14px;
+    color: var(--primary);
+    cursor: pointer;
+  }
+
+  .refresh:hover { text-decoration: underline; }
+
+  .updated { font-size: 12px; }
+
+  .overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 28px;
+  }
+
+  .stat {
+    background: var(--card);
+    border-radius: 6px;
+    padding: 20px 24px;
+  }
+
+  .stat-num {
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-num.normal { color: var(--normal); }
+  .stat-num.watch { color: var(--watch); }
+  .stat-num.alert { color: var(--alert); }
+  .stat-num.primary { color: var(--primary); }
+
+  .stat-label {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .section { margin-top: 28px; }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .section-meta {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .text-btn {
+    border: 0;
+    background: none;
+    padding: 0;
+    font-size: 14px;
+    color: var(--primary);
+    cursor: pointer;
+  }
+
+  .text-btn:hover { text-decoration: underline; }
+
+  .error-note {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .empty {
+    padding: 40px 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .trigger-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .trigger-card {
+    background: var(--card);
+    border-radius: 6px;
+    border-left: 4px solid var(--normal);
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .trigger-card:hover { background: var(--soft); }
+  .trigger-card.watch { border-left-color: var(--watch); }
+  .trigger-card.alert { border-left-color: var(--alert); }
+
+  .trigger-name {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--muted);
+    line-height: 1.4;
+    min-height: 20px;
+  }
+
+  .trigger-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin: 10px 0 8px;
+  }
+
+  .trigger-value {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .trigger-unit {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .trigger-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 18px;
+  }
+
+  .trigger-status.normal { color: var(--normal); }
+  .trigger-status.watch { color: var(--watch); }
+  .trigger-status.alert { color: var(--alert); }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: 80px minmax(110px, 1.2fr) 170px 120px minmax(0, 2fr);
+    gap: 16px;
+    align-items: center;
+    min-height: 48px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .signal-row:last-child { border-bottom: 0; }
+
+  .signal-time {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .signal-name { font-size: 14px; }
+
+  .signal-shift { font-size: 14px; }
+
+  .signal-arrow { padding: 0 4px; color: var(--muted); }
+
+  .shift-from.normal, .shift-to.normal { color: var(--normal); }
+  .shift-from.watch, .shift-to.watch { color: var(--watch); }
+  .shift-from.alert, .shift-to.alert { color: var(--alert); }
+
+  .signal-value {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  .signal-note {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .judgment-card {
+    background: var(--soft);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 12px;
+  }
+
+  .judgment-card:last-child { margin-bottom: 0; }
+
+  .judgment-cond {
+    font-size: 14px;
+    color: var(--muted);
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  .judgment-text {
+    margin: 8px 0 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .judgment-time { font-size: 12px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; }
+
+  .choke-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+  }
+
+  .choke-table th {
+    padding: 0 12px 10px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .choke-table td {
+    height: 56px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+
+  .choke-table tr.paradox { background: var(--warm); }
+
+  .score-num {
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  .score-total { font-size: 12px; color: var(--muted); }
+
+  .choke-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .choke-state::before {
+    content: "";
+    display: block;
+    width: 3px;
+    height: 14px;
+    background: var(--muted);
+  }
+
+  .choke-state.tight::before { background: var(--alert); }
+  .choke-state.loosening::before { background: var(--normal); }
+
+  .mark-window { font-size: 12px; color: var(--watch); }
+  .mark-none { font-size: 12px; color: var(--muted); }
+
+  .footnote {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 1023px) {
+    .trigger-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .overview { grid-template-columns: repeat(2, 1fr); }
+    .signal-row { grid-template-columns: 80px minmax(100px, 1fr) 150px 100px; }
+    .signal-note { display: none; }
+  }
+
+  @media (max-width: 639px) {
+    .page { padding: 24px 20px; }
+    .top { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .top-right { align-items: flex-start; }
+    .trigger-grid { grid-template-columns: 1fr; }
+    .signal-row { grid-template-columns: 72px minmax(90px, 1fr) auto auto; gap: 8px; }
+    .signal-note { display: none; }
+    .choke-table { min-width: 0; }
+    .choke-table th { padding: 0 6px 10px; white-space: normal; }
+    .choke-table td { height: 48px; padding: 0 6px; font-size: 13px; }
+    .score-num { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <div class="top-left">
+      <div class="brand">
+        <h1 id="pageTitle"></h1>
+        <select class="chain-select" id="chainSelect" aria-label="选择产业链"></select>
+      </div>
+      <p class="subtitle" id="subtitle">加载中</p>
+    </div>
+    <div class="top-right">
+      <div class="health" id="health">
+        <span class="health-item" data-src="sqlite"><i class="dot"></i><span>sqlite</span></span>
+        <span class="health-item" data-src="akshare"><i class="dot"></i><span>akshare</span></span>
+        <span class="health-item" data-src="adata"><i class="dot"></i><span>adata</span></span>
+      </div>
+      <button class="refresh" id="refreshBtn" type="button">刷新</button>
+      <div class="updated" id="updated">最后更新：—</div>
+    </div>
+  </header>
+
+  <section class="overview" aria-label="状态概览">
+    <div class="stat">
+      <div class="stat-num normal" id="statNormal">—</div>
+      <div class="stat-label">正常</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num watch" id="statWatch">—</div>
+      <div class="stat-label">关注</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num alert" id="statAlert">—</div>
+      <div class="stat-label">触发</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num primary" id="statLatest">—</div>
+      <div class="stat-label">最近信号</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>触发器状态</h2>
+      <span class="section-meta" id="triggerCount">共 — 个</span>
+    </div>
+    <div class="error-note" id="triggersError" hidden></div>
+    <div class="trigger-grid" id="triggerGrid"></div>
+    <div class="empty" id="triggersEmpty">加载中</div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>最近信号</h2>
+      <button class="text-btn" id="signalsMore" type="button">查看全部</button>
+    </div>
+    <div class="error-note" id="signalsError" hidden></div>
+    <div class="signal-list" id="signalList"></div>
+    <div class="empty" id="signalsEmpty">加载中</div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>组合规则判断</h2>
+    </div>
+    <div class="error-note" id="judgmentsError" hidden></div>
+    <div id="judgmentList"></div>
+    <div class="empty" id="judgmentsEmpty">加载中</div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>卡点分析</h2>
+      <span class="section-meta">paradox 标记表示卡点评分高但利润占比低</span>
+    </div>
+    <div class="error-note" id="chokesError" hidden></div>
+    <div class="table-wrap" id="chokeWrap">
+      <table class="choke-table">
+        <thead>
+          <tr>
+            <th>环节</th><th>类型</th><th>评分</th><th>状态</th><th>利润占比</th><th>标记</th>
+          </tr>
+        </thead>
+        <tbody id="chokeBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="chokesEmpty">加载中</div>
+    <p class="footnote">卡点不等于可投，需结合利润兑现和估值定价三维判断</p>
+  </section>
+</main>
+
+<script>
+  const state = {
+    chain: null,
+    chains: [],
+    signalsLimit: 10,
+    judgments: []
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const TITLE = document.title;
+
+  function setText(el, text) {
+    if (el && el.textContent !== text) el.textContent = text;
+  }
+
+  function showError(id, message) {
+    const el = $(id);
+    if (!el) return;
+    el.hidden = !message;
+    setText(el, message || "");
+  }
+
+  function toggleEmpty(container, emptyEl, hasItems, emptyText) {
+    if (container) container.style.display = hasItems ? "" : "none";
+    if (emptyEl) {
+      emptyEl.hidden = hasItems;
+      if (!hasItems) setText(emptyEl, emptyText);
+    }
+  }
+
+  async function getJSON(url) {
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+
+  function parseTs(ts) {
+    if (!ts) return null;
+    const date = new Date(ts);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function clock(date) {
+    return pad(date.getHours()) + ":" + pad(date.getMinutes());
+  }
+
+  function signalTime(ts) {
+    const date = parseTs(ts);
+    if (!date) return "—";
+    const now = new Date();
+    const sameDay = date.getFullYear() === now.getFullYear()
+      && date.getMonth() === now.getMonth()
+      && date.getDate() === now.getDate();
+    if (sameDay) return clock(date);
+    return pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + " " + clock(date);
+  }
+
+  function relativeTime(ts) {
+    const date = parseTs(ts);
+    if (!date) return "—";
+    const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (minutes < 1) return "刚刚";
+    if (minutes < 60) return minutes + " 分钟前";
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + " 小时前";
+    const days = Math.floor(hours / 24);
+    if (days < 7) return days + " 天前";
+    return pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+  }
+
+  function syncKeyed(container, items, keyOf, create, update) {
+    const current = Array.from(container.children);
+    const existing = new Map(current.map((node) => [node.dataset.key, node]));
+    const ordered = [];
+    for (const item of items) {
+      const key = String(keyOf(item));
+      let node = existing.get(key);
+      if (node) {
+        existing.delete(key);
+        update(node, item);
+      } else {
+        node = create(item);
+        node.dataset.key = key;
+        update(node, item);
+      }
+      ordered.push(node);
+    }
+    for (const node of existing.values()) node.remove();
+    const same = current.length === ordered.length
+      && ordered.every((node, index) => node === current[index]);
+    if (!same) {
+      for (const node of ordered) container.appendChild(node);
+    }
+  }
+
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function createTriggerCard() {
+    const card = element("article", "trigger-card");
+    const name = element("div", "trigger-name");
+    const row = element("div", "trigger-value-row");
+    const value = element("span", "trigger-value");
+    const unit = element("span", "trigger-unit");
+    row.append(value, unit);
+    const foot = element("div", "trigger-foot");
+    const status = element("span", "trigger-status");
+    const change = element("span", "trigger-change");
+    foot.append(status, change);
+    card.append(name, row, foot);
+    card._refs = { name, value, unit, status, change };
+    return card;
+  }
+
+  function updateTriggerCard(card, item) {
+    const refs = card._refs;
+    card.className = "trigger-card " + item.status;
+    setText(refs.name, item.name);
+    setText(refs.value, item.value_text);
+    setText(refs.unit, item.unit || "");
+    setText(refs.status, item.status_label);
+    refs.status.className = "trigger-status " + item.status;
+    setText(refs.change, item.change_text || "");
+  }
+
+  function createSignalRow() {
+    const row = element("div", "signal-row");
+    const time = element("div", "signal-time");
+    const name = element("div", "signal-name");
+    const shift = element("div", "signal-shift");
+    const from = element("span", "shift-from");
+    const arrow = element("span", "signal-arrow", "→");
+    const to = element("span", "shift-to");
+    shift.append(from, arrow, to);
+    const value = element("div", "signal-value");
+    const note = element("div", "signal-note");
+    row.append(time, name, shift, value, note);
+    row._refs = { time, name, from, to, value, note };
+    return row;
+  }
+
+  function updateSignalRow(row, item) {
+    const refs = row._refs;
+    setText(refs.time, signalTime(item.ts));
+    setText(refs.name, item.name);
+    refs.from.className = "shift-from " + item.from_status;
+    refs.to.className = "shift-to " + item.to_status;
+    setText(refs.from, item.from_label);
+    setText(refs.to, item.to_label);
+    setText(refs.value, item.value_text + (item.unit ? " " + item.unit : ""));
+    setText(refs.note, item.interpretation || "");
+  }
+
+  function createJudgmentCard() {
+    const card = element("article", "judgment-card");
+    const cond = element("div", "judgment-cond");
+    const text = element("div", "judgment-text");
+    const time = element("div", "judgment-time");
+    card.append(cond, text, time);
+    card._refs = { cond, text, time };
+    return card;
+  }
+
+  function updateJudgmentCard(card, item) {
+    setText(card._refs.cond, item.rule_cond);
+    setText(card._refs.text, item.judgment);
+    setText(card._refs.time, signalTime(item.ts));
+  }
+
+  function createChokeRow() {
+    const row = document.createElement("tr");
+    const node = document.createElement("td");
+    const type = document.createElement("td");
+    const score = document.createElement("td");
+    const scoreNum = element("span", "score-num");
+    const scoreTotal = element("span", "score-total", "/9");
+    score.append(scoreNum, scoreTotal);
+    const state = document.createElement("td");
+    const stateInner = element("span", "choke-state");
+    state.appendChild(stateInner);
+    const share = document.createElement("td");
+    const mark = document.createElement("td");
+    row.append(node, type, score, state, share, mark);
+    row._refs = { node, type, scoreNum, stateInner, share, mark };
+    return row;
+  }
+
+  function updateChokeRow(row, item) {
+    const refs = row._refs;
+    row.className = item.paradox ? "paradox" : "";
+    setText(refs.node, item.node);
+    setText(refs.type, item.type_label);
+    setText(refs.scoreNum, String(item.score));
+    refs.stateInner.className = "choke-state " + item.state;
+    setText(refs.stateInner, item.state_label);
+    setText(refs.share, item.profit_share_text);
+    if (item.paradox) {
+      refs.mark.className = "mark-window";
+      setText(refs.mark, "价值窗口");
+    } else {
+      refs.mark.className = "mark-none";
+      setText(refs.mark, "—");
+    }
+  }
+
+  function applyTriggers(data) {
+    const triggers = data.triggers || [];
+    syncKeyed($("triggerGrid"), triggers, (item) => item.id, createTriggerCard, updateTriggerCard);
+    toggleEmpty($("triggerGrid"), $("triggersEmpty"), triggers.length > 0, "暂无触发器数据");
+    setText($("triggerCount"), "共 " + triggers.length + " 个");
+
+    const stats = data.stats || {};
+    setText($("statNormal"), String(stats.normal ?? 0));
+    setText($("statWatch"), String(stats.watch ?? 0));
+    setText($("statAlert"), String(stats.alert ?? 0));
+    setText($("statLatest"), relativeTime(stats.latest_signal_ts));
+  }
+
+  function applySignals(data) {
+    const signals = data.signals || [];
+    syncKeyed($("signalList"), signals, (item) => item.id, createSignalRow, updateSignalRow);
+    toggleEmpty($("signalList"), $("signalsEmpty"), signals.length > 0, "暂无状态迁移");
+    setText($("signalsMore"), state.signalsLimit > 10 ? "收起" : "查看全部");
+  }
+
+  function applyJudgments(data) {
+    const judgments = data.judgments || [];
+    state.judgments = judgments;
+    syncKeyed($("judgmentList"), judgments, (item) => item.id, createJudgmentCard, updateJudgmentCard);
+    toggleEmpty($("judgmentList"), $("judgmentsEmpty"), judgments.length > 0, "暂无规则触发");
+    setText($("subtitle"), judgments.length ? judgments[0].judgment : "暂无阶段判断");
+  }
+
+  function applyChokes(data) {
+    const chokes = data.chokes || [];
+    syncKeyed($("chokeBody"), chokes, (item) => item.node, createChokeRow, updateChokeRow);
+    toggleEmpty($("chokeWrap"), $("chokesEmpty"), chokes.length > 0, "暂无卡点数据");
+  }
+
+  function applyHealth(data) {
+    const sources = data.sources || [];
+    const states = new Map(sources.map((item) => [item.name, item.ok]));
+    document.querySelectorAll(".health-item").forEach((item) => {
+      const ok = states.get(item.dataset.src);
+      item.classList.toggle("ok", ok === true);
+      item.classList.toggle("bad", ok === false);
+    });
+  }
+
+  async function loadAll() {
+    if (!state.chain) return;
+    const chain = encodeURIComponent(state.chain);
+    const tasks = [
+      { key: "triggers", error: "triggersError", url: "/api/chain/" + chain + "/triggers", apply: applyTriggers },
+      { key: "signals", error: "signalsError", url: "/api/chain/" + chain + "/signals?limit=" + state.signalsLimit, apply: applySignals },
+      { key: "judgments", error: "judgmentsError", url: "/api/chain/" + chain + "/judgments?limit=5", apply: applyJudgments },
+      { key: "chokes", error: "chokesError", url: "/api/chain/" + chain + "/chokes", apply: applyChokes },
+      { key: "health", error: null, url: "/api/health", apply: applyHealth }
+    ];
+    const results = await Promise.allSettled(tasks.map((task) => getJSON(task.url)));
+    let failed = false;
+    results.forEach((result, index) => {
+      const task = tasks[index];
+      if (result.status === "fulfilled") {
+        showError(task.error, "");
+        try {
+          task.apply(result.value);
+        } catch (err) {
+          if (task.error) showError(task.error, "加载失败：" + err.message);
+        }
+      } else {
+        failed = true;
+        if (task.error) showError(task.error, "加载失败：" + result.reason.message);
+      }
+    });
+    if (!failed) {
+      const now = new Date();
+      setText($("updated"), "最后更新：" + clock(now) + ":" + pad(now.getSeconds()));
+    }
+  }
+
+  async function boot() {
+    setText($("pageTitle"), TITLE);
+    try {
+      const data = await getJSON("/api/chains");
+      state.chains = data.chains || [];
+      if (!state.chains.length) {
+        setText($("subtitle"), "暂无产业链配置");
+        ["triggers", "signals", "judgments", "chokes"].forEach((key) => {
+          const empty = $(key + "Empty");
+          if (empty) {
+            empty.hidden = false;
+            setText(empty, "暂无数据");
+          }
+        });
+        return;
+      }
+      const select = $("chainSelect");
+      for (const name of state.chains) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      }
+      state.chain = state.chains[0];
+      select.value = state.chain;
+      setText($("pageTitle"), state.chain + TITLE);
+      await loadAll();
+    } catch (err) {
+      setText($("subtitle"), "加载失败：" + err.message);
+      ["triggers", "signals", "judgments", "chokes"].forEach((key) => {
+        showError(key + "Error", "加载失败：" + err.message);
+      });
+    }
+    setInterval(() => loadAll(), 60000);
+  }
+
+  $("chainSelect").addEventListener("change", (event) => {
+    state.chain = event.target.value;
+    state.signalsLimit = 10;
+    setText($("pageTitle"), state.chain + TITLE);
+    setText($("subtitle"), "加载中");
+    loadAll();
+  });
+
+  $("refreshBtn").addEventListener("click", () => loadAll());
+
+  $("signalsMore").addEventListener("click", () => {
+    state.signalsLimit = state.signalsLimit > 10 ? 10 : 30;
+    loadAll();
+  });
+
+  boot();
+</script>
+</body>
+</html>
