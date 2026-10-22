@@ -89,18 +89,18 @@ triggers:
     crit_range: [-30, -10]
     rule: below
     meaning: 合同负债环比转负说明预收款减少，传导至下一个季度报表收入增速下修；区间待人工标定。
-  - id: advance_receipt
-    name: 预收款占营收比重
-    layer: fin
+  - id: gross_margin
+    name: 销售毛利率
+    layer: margin
     lead: lag
     freq: 季
     src: 财报
     unit: "%"
-    normal_range: [15, 40]
-    warn_range: [8, 15]
-    crit_range: [0, 8]
+    normal_range: [60, 95]
+    warn_range: [50, 60]
+    crit_range: [0, 50]
     rule: below
-    meaning: 预收款占营收比重跌破 8% 说明经销商不愿提前打款，传导至未来两个季度报表增速下修；区间待人工标定。
+    meaning: 毛利率跌破 50% 说明酒企以价换量，传导至净利率与经营现金流走弱；区间待人工标定。
   - id: shipment
     name: 酒企发货增速
     layer: supply
@@ -148,9 +148,9 @@ rules:
   - cond: banquet 非正常 AND ecom_price 非正常
     res: 需求与价格体系双弱
     rationale: 宴席恢复不足削弱真实需求，电商价差扩大破坏价格体系，两项同向才构成需求侧确认。
-  - cond: shipment 非正常 AND advance_receipt 非正常
-    res: 发货与回款背离
-    rationale: 发货增速转负同时预收款占比处于低位，说明渠道既不愿打款也卖不动，酒企报表将同步下修。
+  - cond: shipment 非正常 AND gross_margin 非正常
+    res: 发货与盈利能力双弱
+    rationale: 发货增速转负同时毛利率跌破阈值，说明渠道卖不动且酒企开始让利，报表将同步下修。
 
 agents:
   - name: 渠道监测
@@ -158,7 +158,7 @@ agents:
     triggers: [wholesale_price, channel_profit, channel_inv, ecom_price]
   - name: 报表验证
     role: 用季报验证渠道信号是否传导到报表
-    triggers: [contract_liab, advance_receipt, shipment]
+    triggers: [contract_liab, gross_margin, shipment]
   - name: 阶段定位
     role: 结合指标组合判断当前所处的周期阶段
     triggers: []
@@ -236,7 +236,7 @@ data_gaps:
   - 渠道库存月数缺分省份、分价格带口径，需人工调研补全
   - 批价与渠道单瓶利润的区间需按最新渠道调研复核
   - 合同负债环比阈值区间待人工标定
-  - 预收款占营收比重的历史分位数缺失，区间待人工标定
+  - 销售毛利率的历史分位数缺失，区间待人工标定
   - 酒企发货增速缺统一口径，区间待人工标定
   - 宴席场景恢复度无公开指数，区间待人工标定
   - 电商价差缺平台级连续序列，区间待人工标定
