@@ -25,6 +25,10 @@ _LOCAL_SOURCES = frozenset({"渠道调研", "研报"})
 
 _BS_LOGGED_IN = False
 
+_CIRCUIT: dict[str, dict] = {}
+_FAILURE_THRESHOLD = 3
+_COOLDOWN_SECONDS = 1800
+
 
 def _ensure_baostock_login() -> None:
     """进程级单例登录，避免重复 login 导致连接租约冲突。"""
@@ -117,7 +121,53 @@ def fetch_with_retry(func: Callable[..., pd.DataFrame], **kwargs: Any) -> pd.Dat
     return frame
 
 
-def _fetch_contract_liab(trigger: Trigger, symbol: str) -> pd.DataFrame:
+def _circuit_open(name: str) -> bool:
+    """判断某数据源是否处于熔断冷却期。"""
+    state = _CIRCUIT.get(name)
+    if not state:
+        return False
+    if time.time() >= state.get("open_until", 0):
+        return False
+    return True
+
+
+def _record_source(name: str, ok: bool) -> None:
+    """记录一次调用结果，连续失败达到阈值则开启熔断。"""
+    state = _CIRCUIT.setdefault(name, {"failures": 0, "open_until": 0})
+    if ok:
+        state["failures"] = 0
+        state["open_until"] = 0
+        return
+    state["failures"] += 1
+    if state["failures"] >= _FAILURE_THRESHOLD:
+        state["open_until"] = time.time() + _COOLDOWN_SECONDS
+        state["failures"] = 0
+
+
+def _try_sources(
+    sources: list[tuple[str, Callable[[Trigger, str], pd.DataFrame]]],
+    trigger: Trigger,
+    symbol: str,
+) -> pd.DataFrame:
+    """按优先级依次尝试候选源，全部失败抛 ConnectionError。"""
+    errors: list[str] = []
+    for name, func in sources:
+        if _circuit_open(name):
+            errors.append(f"{name}: circuit_open")
+            continue
+        try:
+            frame = func(trigger, symbol)
+            _record_source(name, True)
+            _log("source", name, "ok")
+            return frame
+        except Exception as exc:
+            _record_source(name, False)
+            errors.append(f"{name}: {type(exc).__name__}: {exc}")
+            _log("source", name, f"fail: {exc}")
+    raise ConnectionError("; ".join(errors))
+
+
+def _cl_from_akshare(trigger: Trigger, symbol: str) -> pd.DataFrame:
     """AKShare 资产负债表：合同负债同比。"""
     raw = fetch_with_retry(
         ak.stock_balance_sheet_by_report_em, symbol=f"SH{symbol}"
@@ -132,12 +182,45 @@ def _fetch_contract_liab(trigger: Trigger, symbol: str) -> pd.DataFrame:
     ).dropna(subset=["value"])
 
 
+def _fetch_contract_liab(trigger: Trigger, symbol: str) -> pd.DataFrame:
+    sources = [
+        ("akshare_cl", _cl_from_akshare),
+        # 预留：Tushare 接入后在此追加 ("tushare_cl", _cl_from_tushare)
+    ]
+    return _try_sources(sources, trigger, symbol)
+
+
+def _gm_from_adata(trigger: Trigger, symbol: str) -> pd.DataFrame:
+    """adata 核心财务：毛利率（已是百分数）。"""
+    import adata
+    raw = adata.stock.finance.get_core_index(stock_code=symbol)
+    if raw is None or raw.empty:
+        raise ValueError("adata 毛利率无数据")
+    df = pd.DataFrame(
+        {
+            "date": raw["report_date"].astype(str).str[:10],
+            "value": pd.to_numeric(raw["gross_margin"], errors="coerce"),
+        }
+    ).dropna(subset=["value"])
+    return df.sort_values("date").tail(HISTORY_LIMIT)
+
+
+def _gm_from_akshare(trigger: Trigger, symbol: str) -> pd.DataFrame:
+    """AKShare 利润表：毛利率（百分数）。字段名以实际验证结果为准。"""
+    raw = fetch_with_retry(
+        ak.stock_profit_sheet_by_report_em, symbol=f"SH{symbol}"
+    )
+    # 注意：以下列名需根据第 0 步验证结果调整
+    # 可能是 GROSS_PROFIT_MARGIN、GROSS_PROFIT_RATIO 或其他
+    raise NotImplementedError("待第 0 步验证后填入实际列名")
+
+
 def _fetch_gross_margin(trigger: Trigger, symbol: str) -> pd.DataFrame:
-    """Baostock 利润表：毛利率（百分数）。"""
-    rows = _baostock_profit_history(symbol, HISTORY_LIMIT)
-    if not rows:
-        raise ValueError("Baostock 毛利率无数据")
-    return pd.DataFrame(rows, columns=["date", "value"])
+    sources = [
+        ("adata_gm", _gm_from_adata),
+        # ("akshare_gm", _gm_from_akshare),  # 第 0 步验证通过后取消注释
+    ]
+    return _try_sources(sources, trigger, symbol)
 
 
 def _fetch_financial(trigger: Trigger, symbol: str) -> pd.DataFrame:
