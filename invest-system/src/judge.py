@@ -61,7 +61,7 @@ def run_judge(
         if transition is None:
             continue
 
-        insert_signal(
+        signal_id = insert_signal(
             conn,
             config.chain_name,
             trigger.id,
@@ -71,6 +71,6 @@ def run_judge(
             trigger.unit,
             now_iso(),
         )
-        transitions.append(transition)
+        transitions.append({**transition, "signal_id": signal_id})
 
     return transitions

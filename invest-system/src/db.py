@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS signal_log (
     to_status   TEXT NOT NULL,
     value       REAL NOT NULL,
     unit        TEXT NOT NULL,
-    ts          TEXT NOT NULL
+    ts          TEXT NOT NULL,
+    payload_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS judgment_log (
@@ -119,13 +120,25 @@ def insert_signal(
     value: float,
     unit: str,
     ts: str,
-) -> None:
-    """记录一次状态变化。"""
-    conn.execute(
+) -> int:
+    """记录一次状态变化并返回记录 id。"""
+    cursor = conn.execute(
         "INSERT INTO signal_log"
         " (chain, trigger_id, from_status, to_status, value, unit, ts)"
         " VALUES (?, ?, ?, ?, ?, ?, ?)",
         (chain, trigger_id, from_status, to_status, value, unit, ts),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def set_signal_payload(
+    conn: sqlite3.Connection, signal_id: int, payload: dict
+) -> None:
+    """将 LLM 解读结果挂到对应状态迁移记录上。"""
+    conn.execute(
+        "UPDATE signal_log SET payload_json = ? WHERE id = ?",
+        (json.dumps(payload, ensure_ascii=False), signal_id),
     )
     conn.commit()
 
