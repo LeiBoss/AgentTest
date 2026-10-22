@@ -1,0 +1,8 @@
+pydantic>=2,<3
+akshare>=1.12
+pandas>=2.0
+tenacity>=8.2
+openai>=1.30
+requests>=2.31
+PyYAML>=6.0
+pytest>=8.0
