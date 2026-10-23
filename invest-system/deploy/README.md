@@ -1,76 +1,101 @@
-# 部署说明
+# 部署（Docker）
 
-目标环境：阿里云轻量应用服务器（Ubuntu，2 核 2G），路径统一为 `/home/ubuntu/invest-system`。
+Web 展示与每日任务分别跑在两个容器里，共用 `./data/invest.db`：
 
-## 1. 创建虚拟环境并安装依赖
+- `invest-web`：FastAPI + uvicorn，常驻，暴露 8000
+- `invest-worker`：每天 07:30（Asia/Shanghai）执行一次 `main.py`
+
+## 1. 安装 Docker
 
 ```bash
-cd /home/ubuntu/invest-system
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -U pip -i https://mirrors.aliyun.com/pypi/simple/
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+sudo dnf install -y docker
+sudo systemctl enable --now docker
+
+# Compose 插件优先用系统源；没有则装独立二进制
+sudo dnf install -y docker-compose-plugin || {
+  sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+    -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+}
 ```
 
-阿里云镜像不可用时，去掉 `-i` 参数改走默认源。
+国内拉取基础镜像慢时，可在 `/etc/docker/daemon.json` 配置阿里云镜像加速器后重启 Docker。
 
-## 2. 配置环境变量
-
-创建 `.env`（systemd 通过 `EnvironmentFile` 读取，shell 手动运行时也可 `source`）：
+## 2. 准备环境变量与数据目录
 
 ```bash
-cat > /home/ubuntu/invest-system/.env <<'EOF'
+cd /root/new-invest/AgentTest/invest-system
+
+cat > .env <<'EOF'
 DEEPSEEK_API_KEY=sk-xxx
 FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 FEISHU_SECRET=xxx
 EOF
-chmod 600 /home/ubuntu/invest-system/.env
+chmod 600 .env
+
+mkdir -p data
+# 如已有 SQLite 数据，迁移进来（可选）
+cp -a invest.db data/invest.db 2>/dev/null || true
 ```
 
-三个变量缺任意一个，LLM 解读或推送都会失败并在日志中报错。
-
-## 3. 安装并启用定时器
+## 3. 构建并启动
 
 ```bash
-cd /home/ubuntu/invest-system
-sudo cp deploy/invest.service deploy/invest.timer /etc/systemd/system/
-sudo timedatectl set-timezone Asia/Shanghai
-sudo systemctl daemon-reload
-sudo systemctl enable --now invest.timer
+docker compose build
+docker compose up -d
+docker compose ps
 ```
 
-`OnCalendar` 走系统本地时区，务必先设为 `Asia/Shanghai`，否则 07:30 会按 UTC 触发。
+首次没有数据时，手动跑一次采集：
+
+```bash
+docker compose run --rm worker python main.py config/chains/baijiu.yaml 600519
+```
 
 ## 4. 验证
 
 ```bash
-systemctl list-timers invest.timer
-sudo systemctl start invest.service
-journalctl -u invest.service -f
+curl -s http://127.0.0.1:8000/api/health
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/
+docker compose logs -f web
+docker compose logs -f worker
 ```
 
-手动跑一次完整流程（不依赖 systemd）：
+外网访问前，在阿里云安全组放行 `8000/TCP`，然后打开 `http://公网IP:8000`。
+
+## 5. 日常运维
 
 ```bash
-cd /home/ubuntu/invest-system
-.venv/bin/python main.py config/chains/baijiu.yaml 600519.SH
+# 更新代码后重建
+git pull
+docker compose up -d --build
+
+# 手动触发一次任务
+docker compose exec worker python main.py config/chains/baijiu.yaml 600519
+
+# 停止 / 启动
+docker compose down
+docker compose up -d
+
+# 查看定时任务下一次执行时间（容器内逻辑）
+docker compose logs --tail 20 worker
 ```
 
-## 5. 启用 swap
+## 6. 从 systemd 迁移
+
+先停掉旧服务，避免两个进程同时写 SQLite：
 
 ```bash
-chmod +x deploy/swap.sh
-sudo ./deploy/swap.sh
-free -h
+sudo systemctl disable --now invest.timer invest-web.service
+sudo rm -f /etc/systemd/system/invest.service \
+           /etc/systemd/system/invest.timer \
+           /etc/systemd/system/invest-web.service
+sudo systemctl daemon-reload
 ```
 
-脚本创建 2GB `/swapfile`、写入 `/etc/fstab`、并把 `vm.swappiness` 持久化为 10，重复执行会跳过已启用的 swap。
+## 说明
 
-## 常用运维命令
-
-```bash
-sudo systemctl status invest.timer      # 定时器状态
-sudo systemctl status invest.service    # 最近一次执行状态
-journalctl -u invest.service -n 100     # 最近 100 行日志
-sudo systemctl disable --now invest.timer  # 停止调度
-```
+- 数据库路径由 `INVEST_DB=/data/invest.db` 指定，`data/` 挂载到容器 `/data`，重建容器不丢数据。
+- `config/` 以只读方式挂载，改 YAML 后重启 worker 容器即可生效。
+- 容器内已设置 `TZ=Asia/Shanghai`，07:30 为北京时间。
+- 定时逻辑在 `deploy/worker.sh`，只依赖 `date` 和 `sleep`，没有引入额外调度组件。
