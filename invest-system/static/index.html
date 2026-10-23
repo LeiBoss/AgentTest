@@ -32,9 +32,9 @@
   }
 
   .page {
-    max-width: 1240px;
+    max-width: 1280px;
     margin: 0 auto;
-    padding: 32px 40px;
+    padding: 36px 44px;
   }
 
   .top {
@@ -43,36 +43,60 @@
     align-items: center;
     gap: 24px;
     flex-wrap: wrap;
-    padding-bottom: 24px;
+    padding-bottom: 28px;
     border-bottom: 1px solid var(--line);
   }
 
   .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
   }
 
   h1 {
     margin: 0;
-    font-size: 36px;
+    font-size: clamp(32px, 3.2vw, 40px);
     font-weight: 600;
     color: var(--primary);
     letter-spacing: 0.5px;
     line-height: 1.25;
   }
 
-  .chain-select {
+  .chain-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chain-input {
     font: inherit;
     font-size: 15px;
+    color: var(--primary);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 12px;
+    width: 156px;
+  }
+
+  .chain-input::placeholder { color: var(--muted); }
+  .chain-input:focus { outline: none; border-color: var(--primary); }
+  .chain-input:disabled { background: var(--soft); cursor: not-allowed; }
+
+  .chain-load {
+    font: inherit;
+    font-size: 14px;
     color: var(--primary);
     background: transparent;
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 6px 14px;
     cursor: pointer;
   }
+
+  .chain-load:hover { background: #eef2f5; border-color: var(--primary); }
+  .chain-load:disabled { color: var(--muted); cursor: not-allowed; }
 
   .subtitle {
     margin: 8px 0 0;
@@ -130,15 +154,19 @@
   .overview {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-top: 28px;
+    gap: 20px;
+    margin-top: 32px;
   }
 
   .stat {
-    background: var(--card);
     border-radius: 6px;
-    padding: 20px 24px;
+    padding: 22px 26px;
   }
+
+  .stat.normal { background: #edf3ef; }
+  .stat.watch { background: #f7f1e5; }
+  .stat.alert { background: #f7ece9; }
+  .stat.latest { background: #edf1f4; }
 
   .stat-num {
     font-size: 32px;
@@ -158,14 +186,14 @@
     color: var(--muted);
   }
 
-  .section { margin-top: 28px; }
+  .section { margin-top: 36px; }
 
   .section-head {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
 
   h2 {
@@ -208,14 +236,14 @@
   .trigger-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    gap: 20px;
   }
 
   .trigger-card {
     background: var(--card);
     border-radius: 6px;
     border-left: 4px solid var(--normal);
-    padding: 24px;
+    padding: 26px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   }
 
@@ -268,7 +296,7 @@
     grid-template-columns: 80px minmax(110px, 1.2fr) 170px 120px minmax(0, 2fr);
     gap: 16px;
     align-items: center;
-    min-height: 48px;
+    min-height: 52px;
     border-bottom: 1px solid var(--line);
   }
 
@@ -349,7 +377,7 @@
   }
 
   .choke-table td {
-    height: 56px;
+    height: 60px;
     padding: 0 12px;
     border-bottom: 1px solid var(--line);
     font-size: 14px;
@@ -403,9 +431,10 @@
   }
 
   @media (max-width: 639px) {
-    .page { padding: 24px 20px; }
+    .page { padding: 28px 20px; }
     .top { flex-direction: column; align-items: flex-start; gap: 16px; }
     .top-right { align-items: flex-start; }
+    .chain-input { width: 132px; }
     .trigger-grid { grid-template-columns: 1fr; }
     .signal-row { grid-template-columns: 72px minmax(90px, 1fr) auto auto; gap: 8px; }
     .signal-note { display: none; }
@@ -422,7 +451,12 @@
     <div class="top-left">
       <div class="brand">
         <h1 id="pageTitle"></h1>
-        <select class="chain-select" id="chainSelect" aria-label="选择产业链"></select>
+        <div class="chain-picker">
+          <input class="chain-input" id="chainInput" list="chainOptions"
+                 placeholder="输入产业链" aria-label="输入产业链名称" autocomplete="off">
+          <datalist id="chainOptions"></datalist>
+          <button class="chain-load" id="chainLoad" type="button">加载</button>
+        </div>
       </div>
       <p class="subtitle" id="subtitle">加载中</p>
     </div>
@@ -438,19 +472,19 @@
   </header>
 
   <section class="overview" aria-label="状态概览">
-    <div class="stat">
+    <div class="stat normal">
       <div class="stat-num normal" id="statNormal">—</div>
       <div class="stat-label">正常</div>
     </div>
-    <div class="stat">
+    <div class="stat watch">
       <div class="stat-num watch" id="statWatch">—</div>
       <div class="stat-label">关注</div>
     </div>
-    <div class="stat">
+    <div class="stat alert">
       <div class="stat-num alert" id="statAlert">—</div>
       <div class="stat-label">触发</div>
     </div>
-    <div class="stat">
+    <div class="stat latest">
       <div class="stat-num primary" id="statLatest">—</div>
       <div class="stat-label">最近信号</div>
     </div>
@@ -811,32 +845,60 @@
         });
         return;
       }
-      const select = $("chainSelect");
+      const options = $("chainOptions");
       for (const name of state.chains) {
         const option = document.createElement("option");
         option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
+        options.appendChild(option);
       }
       state.chain = state.chains[0];
-      select.value = state.chain;
+      $("chainInput").value = state.chain;
       setText($("pageTitle"), state.chain + TITLE);
       await loadAll();
     } catch (err) {
       setText($("subtitle"), "加载失败：" + err.message);
       ["triggers", "signals", "judgments", "chokes"].forEach((key) => {
         showError(key + "Error", "加载失败：" + err.message);
+        const empty = $(key + "Empty");
+        if (empty) {
+          empty.hidden = false;
+          setText(empty, "暂无数据");
+        }
       });
     }
     setInterval(() => loadAll(), 60000);
   }
 
-  $("chainSelect").addEventListener("change", (event) => {
-    state.chain = event.target.value;
+  function loadChain(name) {
+    const chain = (name || "").trim();
+    if (!chain) {
+      setText($("subtitle"), "请输入产业链名称");
+      $("chainInput").focus();
+      return;
+    }
+    if (!state.chains.includes(chain)) {
+      setText($("subtitle"), "未找到产业链：" + chain + "（可用：" + (state.chains.join("、") || "暂无") + "）");
+      return;
+    }
+    if (chain === state.chain) {
+      loadAll();
+      return;
+    }
+    state.chain = chain;
     state.signalsLimit = 10;
-    setText($("pageTitle"), state.chain + TITLE);
+    $("chainInput").value = chain;
+    setText($("pageTitle"), chain + TITLE);
     setText($("subtitle"), "加载中");
     loadAll();
+  }
+
+  $("chainLoad").addEventListener("click", () => loadChain($("chainInput").value));
+
+  $("chainInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      loadChain($("chainInput").value);
+    }
   });
 
   $("refreshBtn").addEventListener("click", () => loadAll());
