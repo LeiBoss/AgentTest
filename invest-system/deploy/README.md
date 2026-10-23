@@ -93,9 +93,40 @@ sudo rm -f /etc/systemd/system/invest.service \
 sudo systemctl daemon-reload
 ```
 
+## 7. 手工导入渠道指标
+
+渠道调研、研报类指标没有公开接口，用 CSV 导入。文件放在宿主机 `data/manual/`，容器内对应 `/data/manual/`。
+
+```bash
+mkdir -p data/manual
+cat > data/manual/2026-10-20.csv <<'EOF'
+metric_date,metric_id,value
+2026-10-20,wholesale_price,2250
+2026-10-20,channel_profit,85
+2026-10-20,channel_inv,2.1
+EOF
+
+docker compose exec -T web python import_metrics.py \
+  config/chains/baijiu.yaml 600519 /data/manual/2026-10-20.csv
+```
+
+规则：
+
+- `metric_id` 必须是 `config/chains/baijiu.yaml` 中已定义的 trigger id
+- `metric_date` 为 `YYYY-MM-DD`，不能晚于今天
+- `value` 按该触发器配置的 `unit` 填写，只写数字
+- 同一文件内同一日期 + 指标不能重复
+- 校验失败会按行号指出具体字段，且整批不写入
+
+导入只写 `daily_metric`，不触发判定与推送。需要立即生效时再跑一次主流程：
+
+```bash
+docker compose exec -T worker python main.py config/chains/baijiu.yaml 600519
+```
+
 ## 说明
 
 - 数据库路径由 `INVEST_DB=/data/invest.db` 指定，`data/` 挂载到容器 `/data`，重建容器不丢数据。
-- `config/` 以只读方式挂载，改 YAML 后重启 worker 容器即可生效。
+- `config/` 以只读方式挂载，改 YAML 后下次任务执行自动生效。
 - 容器内已设置 `TZ=Asia/Shanghai`，07:30 为北京时间。
 - 定时逻辑在 `deploy/worker.sh`，只依赖 `date` 和 `sleep`，没有引入额外调度组件。
