@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -55,9 +56,9 @@ def now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def init_db(path: str = "invest.db") -> sqlite3.Connection:
+def init_db(path: str | None = None) -> sqlite3.Connection:
     """建库建表并返回连接，可重复调用。"""
-    file = Path(path)
+    file = Path(path or os.getenv("INVEST_DB", "invest.db"))
     if file.parent != Path(""):
         file.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(file, detect_types=sqlite3.PARSE_DECLTYPES)

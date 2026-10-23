@@ -11,8 +11,6 @@ EnvironmentFile=-/root/invest-system/.env
 Environment=CHAIN_YAML=/root/invest-system/config/chains/baijiu.yaml
 Environment=SYMBOL=600519
 ExecStart=/root/invest-system/.venv/bin/python main.py
-Restart=on-failure
-RestartSec=60
 
 [Install]
 WantedBy=multi-user.target

@@ -155,7 +155,11 @@ def _push(config: ChainConfig, transitions: list[dict], rules_triggered: list[di
     except ComplianceError as exc:
         logger.error("[main] 合规拦截，跳过推送: %s", exc)
         return False
-    return push_feishu(title, body, DISCLAIMER_TAIL)
+    try:
+        return push_feishu(title, body, DISCLAIMER_TAIL)
+    except EnvironmentError as exc:
+        logger.warning("[main] 未配置飞书推送，跳过: %s", exc)
+        return False
 
 
 def _compose_body(transitions: list[dict], rules_triggered: list[dict]) -> str:
