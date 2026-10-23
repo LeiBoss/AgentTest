@@ -66,12 +66,12 @@ def valid_payload() -> dict[str, Any]:
         ],
         "rules": [
             {
-                "cond": "T01 >= 15 AND T05 >= 1000",
+                "cond": "T01 非正常 AND T05 非正常",
                 "res": "高端酒企利润加速",
                 "rationale": "需求放量叠加批价上行",
             },
             {
-                "cond": "T04 <= 8 AND T03 >= 50",
+                "cond": "T04 非正常 AND T03 非正常",
                 "res": "费用率下行放大利润弹性",
                 "rationale": "规模效应释放",
             },

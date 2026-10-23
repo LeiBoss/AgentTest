@@ -420,6 +420,85 @@
     color: var(--muted);
   }
 
+  .nav {
+    display: flex;
+    gap: 16px;
+  }
+
+  .nav-link {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    color: var(--primary);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .nav-link:hover { text-decoration: underline; }
+
+  .chain-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .chain-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+  }
+
+  .chain-item {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    padding: 2px 0;
+    font: inherit;
+    font-size: 15px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .chain-item:hover { color: var(--primary); }
+
+  .chain-item.active {
+    color: var(--primary);
+    font-weight: 600;
+    border-bottom-color: var(--primary);
+  }
+
+  .chain-item .count {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chain-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .chain-form[hidden] { display: none; }
+
+  .chain-form .chain-input { width: 240px; }
+
+  .chain-note { font-size: 12px; color: var(--muted); }
+  .chain-note.bad { color: var(--alert); }
+  .chain-note.good { color: var(--normal); }
+  .chain-note.busy { color: var(--watch); }
+
   @media (max-width: 1023px) {
     .trigger-grid { grid-template-columns: repeat(2, 1fr); }
   }
@@ -435,6 +514,7 @@
     .top { flex-direction: column; align-items: flex-start; gap: 16px; }
     .top-right { align-items: flex-start; }
     .chain-input { width: 132px; }
+    .chain-form .chain-input { width: 100%; }
     .trigger-grid { grid-template-columns: 1fr; }
     .signal-row { grid-template-columns: 72px minmax(90px, 1fr) auto auto; gap: 8px; }
     .signal-note { display: none; }
@@ -461,6 +541,10 @@
       <p class="subtitle" id="subtitle">加载中</p>
     </div>
     <div class="top-right">
+      <div class="nav">
+        <a class="nav-link" id="reportLink" href="/report">生成研报</a>
+        <button class="nav-link" id="logoutBtn" type="button">退出登录</button>
+      </div>
       <div class="health" id="health">
         <span class="health-item" data-src="sqlite"><i class="dot"></i><span>sqlite</span></span>
         <span class="health-item" data-src="akshare"><i class="dot"></i><span>akshare</span></span>
@@ -470,6 +554,17 @@
       <div class="updated" id="updated">最后更新：—</div>
     </div>
   </header>
+
+  <section class="chain-bar" aria-label="产业链列表">
+    <div class="chain-items" id="chainItems"></div>
+    <button class="text-btn" id="newChainToggle" type="button">新增产业链</button>
+  </section>
+
+  <div class="chain-form" id="chainForm" hidden>
+    <input class="chain-input" id="newChainName" placeholder="输入产业链名称，如 半导体" autocomplete="off">
+    <button class="chain-load" id="chainGenerate" type="button">生成配置</button>
+    <span class="chain-note" id="chainNote"></span>
+  </div>
 
   <section class="overview" aria-label="状态概览">
     <div class="stat normal">
@@ -544,6 +639,7 @@
   const state = {
     chain: null,
     chains: [],
+    items: [],
     signalsLimit: 10,
     judgments: []
   };
@@ -572,8 +668,27 @@
 
   async function getJSON(url) {
     const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (res.status === 401) {
+      location.href = "/login?next=" + encodeURIComponent(location.pathname);
+      throw new Error("登录已过期");
+    }
     if (!res.ok) throw new Error("HTTP " + res.status);
     return res.json();
+  }
+
+  async function postJSON(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body || {})
+    });
+    if (res.status === 401) {
+      location.href = "/login?next=" + encodeURIComponent(location.pathname);
+      throw new Error("登录已过期");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);
+    return data;
   }
 
   function parseTs(ts) {
@@ -797,6 +912,73 @@
     });
   }
 
+  function setChainNote(text, kind) {
+    const note = $("chainNote");
+    note.className = "chain-note" + (kind ? " " + kind : "");
+    setText(note, text || "");
+  }
+
+  function renderChainList() {
+    const box = $("chainItems");
+    box.textContent = "";
+    for (const item of state.items) {
+      const button = element("button", "chain-item", item.name);
+      button.type = "button";
+      button.title = item.trigger_count + " 个触发器 / " + item.rule_count + " 条规则";
+      if (item.name === state.chain) button.classList.add("active");
+      button.appendChild(element("span", "count", item.trigger_count + " 指标"));
+      button.addEventListener("click", () => loadChain(item.name));
+      box.appendChild(button);
+    }
+    if (!state.items.length) {
+      box.appendChild(element("span", "chain-note", "暂无产业链"));
+    }
+  }
+
+  function updateTitle(chain) {
+    setText($("pageTitle"), chain + TITLE);
+    $("reportLink").href = "/report?chain=" + encodeURIComponent(chain);
+  }
+
+  async function refreshChains() {
+    const data = await getJSON("/api/chains");
+    state.items = data.items || [];
+    state.chains = state.items.map((item) => item.name);
+    if (!state.chains.length && data.chains) state.chains = data.chains;
+    renderChainList();
+    return state.items;
+  }
+
+  async function generateChainConfig() {
+    const input = $("newChainName");
+    const button = $("chainGenerate");
+    const name = input.value.trim();
+    if (!name) {
+      setChainNote("请输入产业链名称", "bad");
+      input.focus();
+      return;
+    }
+    input.disabled = true;
+    button.disabled = true;
+    setChainNote("正在生成配置，约需 30 秒…", "busy");
+    try {
+      const result = await postJSON("/api/chains", { name });
+      setChainNote(
+        "已生成 " + result.chain + "：" + result.trigger_count + " 个触发器、"
+        + result.rule_count + " 条规则、" + result.choke_count + " 个卡点",
+        "good"
+      );
+      input.value = "";
+      await refreshChains();
+      await loadChain(result.chain);
+    } catch (err) {
+      setChainNote("生成失败：" + err.message, "bad");
+    } finally {
+      input.disabled = false;
+      button.disabled = false;
+    }
+  }
+
   async function loadAll() {
     if (!state.chain) return;
     const chain = encodeURIComponent(state.chain);
@@ -832,9 +1014,8 @@
   async function boot() {
     setText($("pageTitle"), TITLE);
     try {
-      const data = await getJSON("/api/chains");
-      state.chains = data.chains || [];
-      if (!state.chains.length) {
+      const items = await refreshChains();
+      if (!items.length) {
         setText($("subtitle"), "暂无产业链配置");
         ["triggers", "signals", "judgments", "chokes"].forEach((key) => {
           const empty = $(key + "Empty");
@@ -853,7 +1034,8 @@
       }
       state.chain = state.chains[0];
       $("chainInput").value = state.chain;
-      setText($("pageTitle"), state.chain + TITLE);
+      updateTitle(state.chain);
+      renderChainList();
       await loadAll();
     } catch (err) {
       setText($("subtitle"), "加载失败：" + err.message);
@@ -880,14 +1062,11 @@
       setText($("subtitle"), "未找到产业链：" + chain + "（可用：" + (state.chains.join("、") || "暂无") + "）");
       return;
     }
-    if (chain === state.chain) {
-      loadAll();
-      return;
-    }
     state.chain = chain;
     state.signalsLimit = 10;
     $("chainInput").value = chain;
-    setText($("pageTitle"), chain + TITLE);
+    updateTitle(chain);
+    renderChainList();
     setText($("subtitle"), "加载中");
     loadAll();
   }
@@ -899,6 +1078,30 @@
       event.preventDefault();
       loadChain($("chainInput").value);
     }
+  });
+
+  $("newChainToggle").addEventListener("click", () => {
+    const form = $("chainForm");
+    form.hidden = !form.hidden;
+    if (!form.hidden) $("newChainName").focus();
+  });
+
+  $("chainGenerate").addEventListener("click", () => generateChainConfig());
+
+  $("newChainName").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      generateChainConfig();
+    }
+  });
+
+  $("logoutBtn").addEventListener("click", async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch (err) {
+      // 忽略网络异常，直接回登录页
+    }
+    location.href = "/login";
   });
 
   $("refreshBtn").addEventListener("click", () => loadAll());

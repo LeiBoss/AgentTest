@@ -30,6 +30,9 @@ cat > .env <<'EOF'
 DEEPSEEK_API_KEY=sk-xxx
 FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 FEISHU_SECRET=xxx
+AUTH_USER=admin
+AUTH_PASSWORD=换成自己的强密码
+SESSION_SECRET=再填一串随机字符串
 EOF
 chmod 600 .env
 
@@ -124,9 +127,45 @@ docker compose exec -T web python import_metrics.py \
 docker compose exec -T worker python main.py config/chains/baijiu.yaml 600519
 ```
 
+## 8. 登录
+
+`.env` 里设置 `AUTH_USER`、`AUTH_PASSWORD`、`SESSION_SECRET` 后重启 web 即启用登录：
+
+```bash
+docker compose up -d web
+```
+
+- 未登录访问任何页面会跳到 `/login`，接口返回 401
+- 登录成功后写入签名 Cookie，有效期 7 天；点「退出登录」即清除
+- `SESSION_SECRET` 留空时用密码派生，改密码会让旧会话立即失效
+- `AUTH_PASSWORD` 未设置时不做校验（仅建议本地开发这样用）
+- `/api/health` 与 `/static/*` 保持公开，供容器健康检查使用
+
+## 9. 新增产业链
+
+仪表盘顶部有产业链列表，点「新增产业链」输入名称，前端会调用 DeepSeek 生成完整配置（8-10 个触发器、组合规则、卡点），
+经 Pydantic 与语义校验后写入 `config/chains/<名称>.yaml`。校验不通过会返回具体字段原因，不会写入半成品。
+
+生成后需要跑一次采集才有数据：
+
+```bash
+docker compose exec worker python main.py config/chains/半导体.yaml 600519
+```
+
+注意：`web` 容器以可写方式挂载 `config/`，`worker` 仍是只读；生成的 YAML 会直接出现在宿主机 `config/chains/`，可自行修订阈值。
+
+## 10. 研报与导出 PDF
+
+仪表盘右上角「生成研报」进入 `/report?chain=<名称>`：
+
+- 首次进入提示生成；点击「生成研报」调用 DeepSeek 写解读段落，数据表全部来自 SQLite
+- 生成结果写入 `report_log`，再次进入直接展示最近一份
+- 「导出 PDF」调用浏览器打印，选择「另存为 PDF」即可；页面已内置 A4 打印样式，按钮不会打印出来
+- 研报正文经过 `compliance_filter`，含违规词时整份生成失败并提示，不会静默放过
+
 ## 说明
 
 - 数据库路径由 `INVEST_DB=/data/invest.db` 指定，`data/` 挂载到容器 `/data`，重建容器不丢数据。
-- `config/` 以只读方式挂载，改 YAML 后下次任务执行自动生效。
+- `config/` 挂载到容器 `/app/config`：web 可写（用于生成新链），worker 只读；改 YAML 后下次任务执行自动生效。
 - 容器内已设置 `TZ=Asia/Shanghai`，07:30 为北京时间。
 - 定时逻辑在 `deploy/worker.sh`，只依赖 `date` 和 `sleep`，没有引入额外调度组件。

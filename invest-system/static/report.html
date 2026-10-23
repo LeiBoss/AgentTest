@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>产业链研报</title>
+<style>
+  :root {
+    --bg: #f2f1ee;
+    --card: #ffffff;
+    --primary: #1a3a52;
+    --text: #23231f;
+    --muted: #7a7a72;
+    --line: #e3e2dd;
+    --normal: #1d6b3d;
+    --watch: #a06a14;
+    --alert: #a83b28;
+    --warm: #faf6ec;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; background: var(--bg); }
+
+  body {
+    color: var(--text);
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 36px 64px;
+  }
+
+  .crumb { margin-bottom: 14px; font-size: 13px; }
+
+  .crumb a { color: var(--primary); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 3.4vw, 38px);
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    line-height: 1.3;
+  }
+
+  .meta {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .actions { display: flex; gap: 10px; }
+
+  .btn {
+    font: inherit;
+    font-size: 14px;
+    color: var(--primary);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 7px 16px;
+    cursor: pointer;
+  }
+
+  .btn:hover { background: #eef2f5; border-color: var(--primary); }
+  .btn:disabled { color: var(--muted); cursor: not-allowed; background: transparent; border-color: var(--line); }
+
+  .btn.primary {
+    color: #ffffff;
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .btn.primary:hover { background: #163142; }
+  .btn.primary:disabled { background: var(--muted); border-color: var(--muted); }
+
+  .note { margin: 16px 0 0; font-size: 13px; color: var(--muted); }
+  .note.bad { color: var(--alert); }
+  .note.busy { color: var(--watch); }
+  .note[hidden] { display: none; }
+
+  .block {
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+
+  .block:first-of-type { border-top: 0; padding-top: 0; }
+
+  h2 {
+    margin: 0 0 14px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  h3 {
+    margin: 24px 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  h2 .hint {
+    margin-left: 10px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  p { margin: 0 0 12px; }
+
+  p:last-child { margin-bottom: 0; }
+
+  .lead {
+    font-size: 16px;
+    line-height: 1.85;
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 0;
+  }
+
+  .kv .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+
+  .kv .num {
+    font-size: 24px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+
+  .kv .label { font-size: 12px; color: var(--muted); }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .flow .step {
+    border-bottom: 2px solid var(--line);
+    padding: 2px 4px;
+    font-size: 15px;
+  }
+
+  .flow .arrow { color: var(--muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    padding: 0 10px 10px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  td.num {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .status { white-space: nowrap; }
+  .status.normal { color: var(--normal); }
+  .status.watch { color: var(--watch); }
+  .status.alert { color: var(--alert); }
+  .status.no_data { color: var(--muted); }
+
+  .row-list { margin: 0; padding: 0; list-style: none; }
+
+  .row-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .row-list li:last-child { border-bottom: 0; }
+
+  .row-list .main { font-size: 14px; }
+
+  .row-list .sub {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .rule {
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-bottom: 10px;
+  }
+
+  .rule.matched { background: var(--warm); }
+
+  .rule-cond {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .rule-res { margin-top: 6px; font-size: 16px; font-weight: 600; }
+
+  .rule-rationale { margin-top: 4px; font-size: 13px; color: var(--muted); }
+
+  .tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--watch);
+  }
+
+  .disclaimer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .empty {
+    margin-top: 28px;
+    padding: 56px 24px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .empty[hidden] { display: none; }
+
+  @media (max-width: 720px) {
+    .page { padding: 28px 20px 48px; }
+    .kv { grid-template-columns: repeat(2, 1fr); }
+    .kv .num { font-size: 20px; }
+    .table-wrap { overflow-x: auto; }
+    table { min-width: 620px; }
+    .top { align-items: flex-start; }
+  }
+
+  @page { size: A4; margin: 16mm 14mm; }
+
+  @media print {
+    html, body { background: #ffffff; }
+    body { font-size: 12px; }
+    .page { max-width: none; padding: 0; }
+    .no-print { display: none !important; }
+    .block { break-inside: avoid; page-break-inside: avoid; }
+    .rule, .empty, .kv .item { break-inside: avoid; }
+    tr { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+    table { min-width: 0; }
+    .table-wrap { overflow: visible; }
+    .disclaimer { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <div>
+      <div class="crumb no-print"><a href="/">← 返回仪表盘</a></div>
+      <h1 id="title">产业链研报</h1>
+      <p class="meta" id="meta">加载中</p>
+    </div>
+    <div class="actions no-print">
+      <button class="btn" id="genBtn" type="button">生成研报</button>
+      <button class="btn primary" id="pdfBtn" type="button" disabled>导出 PDF</button>
+    </div>
+  </header>
+
+  <p class="note" id="note" hidden></p>
+
+  <div class="empty" id="empty">正在加载…</div>
+
+  <div id="content" hidden>
+    <section class="block">
+      <h2>摘要</h2>
+      <p class="lead" id="summary"></p>
+    </section>
+
+    <section class="block">
+      <h2>财富逻辑</h2>
+      <p id="wealthLogic"></p>
+    </section>
+
+    <section class="block">
+      <h2>状态概览</h2>
+      <div class="kv">
+        <div class="item">
+          <div class="num" id="statNormal">0</div>
+          <div class="label">正常</div>
+        </div>
+        <div class="item">
+          <div class="num" id="statWatch">0</div>
+          <div class="label">关注</div>
+        </div>
+        <div class="item">
+          <div class="num" id="statAlert">0</div>
+          <div class="label">触发</div>
+        </div>
+        <div class="item">
+          <div class="num" id="statGap">0</div>
+          <div class="label">无数据</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>传导路径</h2>
+      <div class="flow" id="flow"></div>
+      <p id="transmissionNote"></p>
+      <p id="transmissionReading"></p>
+    </section>
+
+    <section class="block">
+      <h2>产业链结构</h2>
+      <ul class="row-list" id="skeletonList"></ul>
+    </section>
+
+    <section class="block">
+      <h2>触发器数据<span class="hint" id="triggerHint"></span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>指标</th>
+              <th>层级</th>
+              <th>最新值</th>
+              <th>状态</th>
+              <th>数据日期</th>
+            </tr>
+          </thead>
+          <tbody id="triggerBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>边际变化</h2>
+      <p id="signalsReading"></p>
+      <ul class="row-list" id="signalList"></ul>
+    </section>
+
+    <section class="block">
+      <h2>组合规则</h2>
+      <p id="rulesReading"></p>
+      <div id="ruleList"></div>
+    </section>
+
+    <section class="block">
+      <h2>卡点与利润分配</h2>
+      <p id="chokeReading"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>卡点</th>
+              <th>类型</th>
+              <th>评分</th>
+              <th>状态</th>
+              <th>利润占比</th>
+            </tr>
+          </thead>
+          <tbody id="chokeBody"></tbody>
+        </table>
+      </div>
+      <h3>利润分配</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>环节</th>
+              <th>利润占比</th>
+              <th>口径</th>
+            </tr>
+          </thead>
+          <tbody id="profitBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>风险提示</h2>
+      <ul class="row-list" id="riskList"></ul>
+      <p id="watchNext"></p>
+    </section>
+
+    <section class="block">
+      <h2>数据缺口</h2>
+      <ul class="row-list" id="gapList"></ul>
+    </section>
+
+    <section class="block">
+      <h2>结论依据</h2>
+      <ul class="row-list" id="evidenceList"></ul>
+    </section>
+
+    <p class="disclaimer" id="disclaimer"></p>
+  </div>
+</main>
+
+<script>
+  const LAYER_LABELS = {
+    price: "价格",
+    inv: "库存",
+    fin: "财务",
+    demand: "需求",
+    supply: "供给",
+    margin: "利润"
+  };
+  const CHOKE_LEVEL_LABELS = { high: "高", medium: "中", low: "低" };
+
+  const $ = (id) => document.getElementById(id);
+  const chainName = new URLSearchParams(location.search).get("chain") || "";
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function setText(id, text) {
+    const node = $(id);
+    if (node) node.textContent = text || "";
+  }
+
+  function setNote(text, kind) {
+    const note = $("note");
+    note.hidden = !text;
+    note.className = "note" + (kind ? " " + kind : "");
+    note.textContent = text || "";
+  }
+
+  function fmtTs(ts) {
+    return ts ? ts.replace("T", " ").slice(0, 16) : "—";
+  }
+
+  async function request(url, options) {
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+      location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search);
+      throw new Error("登录已过期");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 404) {
+      const error = new Error(data.detail || "暂无研报");
+      error.code = 404;
+      throw error;
+    }
+    if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);
+    return data;
+  }
+
+  function renderHeader(report) {
+    document.title = report.chain + "产业链研报";
+    setText("title", report.chain + "产业链研报");
+    const stage = report.current_stage
+      ? report.current_stage.yr + " · " + report.current_stage.t
+      : "阶段未定";
+    setText(
+      "meta",
+      "生成时间 " + fmtTs(report.generated_at)
+      + " ｜ 数据截至 " + (report.data_date || "—")
+      + " ｜ 当前阶段 " + stage
+    );
+  }
+
+  function renderStats(report) {
+    const stats = report.stats || {};
+    setText("statNormal", String(stats.normal ?? 0));
+    setText("statWatch", String(stats.watch ?? 0));
+    setText("statAlert", String(stats.alert ?? 0));
+    setText("statGap", String(stats.no_data ?? 0));
+  }
+
+  function renderTriggers(report) {
+    const body = $("triggerBody");
+    body.textContent = "";
+    for (const item of report.triggers || []) {
+      const row = document.createElement("tr");
+      const name = el("td", "", item.name);
+      name.title = item.meaning || "";
+      const layer = el("td", "", LAYER_LABELS[item.layer] || item.layer);
+      const value = el("td", "num", item.value_text + (item.unit && item.value_text !== "—" ? " " + item.unit : ""));
+      const status = el("td", "status " + item.status, item.status_label);
+      const date = el("td", "num", item.metric_date || "—");
+      row.append(name, layer, value, status, date);
+      body.appendChild(row);
+    }
+    const covered = (report.triggers || []).filter((item) => item.value !== null).length;
+    setText("triggerHint", "已取到 " + covered + " / " + (report.triggers || []).length + " 项数据");
+  }
+
+  function renderSignals(report) {
+    const list = $("signalList");
+    list.textContent = "";
+    const signals = report.signals || [];
+    if (!signals.length) {
+      const empty = el("li", "");
+      empty.appendChild(el("div", "main", "统计区间内没有状态迁移记录"));
+      list.appendChild(empty);
+      return;
+    }
+    for (const item of signals) {
+      const li = document.createElement("li");
+      li.appendChild(el("div", "main", item.name + "：" + item.from_label + " → " + item.to_label
+        + "（" + item.value_text + " " + item.unit + "）"));
+      const sub = el("div", "sub", fmtTs(item.ts) + (item.interpretation ? " ｜ " + item.interpretation : ""));
+      li.appendChild(sub);
+      list.appendChild(li);
+    }
+  }
+
+  function renderRules(report) {
+    const box = $("ruleList");
+    box.textContent = "";
+    for (const item of report.rules || []) {
+      const card = el("div", "rule" + (item.current_match ? " matched" : ""));
+      const cond = el("div", "rule-cond", item.cond);
+      if (item.current_match) cond.appendChild(el("span", "tag", "当前条件成立"));
+      card.appendChild(cond);
+      card.appendChild(el("div", "rule-res", item.res));
+      const rationale = el("div", "rule-rationale", item.rationale);
+      if (item.last_judgment) {
+        rationale.textContent += " ｜ 最近记录：" + item.last_judgment + "（" + fmtTs(item.last_ts) + "）";
+      }
+      card.appendChild(rationale);
+      box.appendChild(card);
+    }
+  }
+
+  function renderChokes(report) {
+    const body = $("chokeBody");
+    body.textContent = "";
+    for (const item of report.chokes || []) {
+      const row = document.createElement("tr");
+      const node = el("td", "", item.node + (item.paradox ? "（价值窗口）" : ""));
+      if (item.paradox && item.paradox_note) node.title = item.paradox_note;
+      const type = el("td", "", item.type_label);
+      const score = el("td", "num", item.score + " / 9 · " + (CHOKE_LEVEL_LABELS[item.level] || item.level));
+      const state = el("td", "", item.state_label);
+      const share = el("td", "num", item.profit_share_pct + "%");
+      row.append(node, type, score, state, share);
+      body.appendChild(row);
+    }
+  }
+
+  function renderProfit(report) {
+    const body = $("profitBody");
+    body.textContent = "";
+    for (const item of report.profit_pool || []) {
+      const row = document.createElement("tr");
+      row.append(
+        el("td", "", item.link),
+        el("td", "num", item.share_pct + "%"),
+        el("td", "", item.basis)
+      );
+      body.appendChild(row);
+    }
+  }
+
+  function renderSkeleton(report) {
+    const list = $("skeletonList");
+    list.textContent = "";
+    for (const node of report.skeleton || []) {
+      const li = document.createElement("li");
+      li.appendChild(el("div", "main", node.name + (node.key ? " · 关键环节" : "")));
+      li.appendChild(el("div", "sub", node.note || ""));
+      list.appendChild(li);
+    }
+  }
+
+  function renderList(id, items, fallback) {
+    const list = $(id);
+    list.textContent = "";
+    const values = items && items.length ? items : [fallback];
+    for (const text of values) {
+      list.appendChild(el("li", "main", text));
+    }
+  }
+
+  function renderContent(report) {
+    renderHeader(report);
+    setText("summary", report.summary);
+    setText("wealthLogic", report.wealth_logic);
+
+    const flow = $("flow");
+    flow.textContent = "";
+    const steps = (report.transmission && report.transmission.chain) || [];
+    steps.forEach((step, index) => {
+      if (index) flow.appendChild(el("span", "arrow", "→"));
+      flow.appendChild(el("span", "step", step));
+    });
+    setText("transmissionNote", (report.transmission && report.transmission.note) || "");
+    setText("transmissionReading", report.transmission_reading);
+    renderSkeleton(report);
+
+    renderStats(report);
+    renderTriggers(report);
+    setText("signalsReading", report.signals_reading);
+    renderSignals(report);
+    setText("rulesReading", report.rules_reading);
+    renderRules(report);
+    setText("chokeReading", report.choke_reading);
+    renderChokes(report);
+    renderProfit(report);
+    renderList("riskList", report.risks, "暂无额外风险提示");
+    setText("watchNext", report.watch_next);
+    renderList("gapList", report.data_gaps, "暂无记录的数据缺口");
+    renderList("evidenceList", report.evidence, "暂无结论依据");
+    setText("disclaimer", report.disclaimer || "");
+
+    $("content").hidden = false;
+    $("empty").hidden = true;
+    $("pdfBtn").disabled = false;
+  }
+
+  function showEmpty(message) {
+    const empty = $("empty");
+    empty.hidden = false;
+    empty.textContent = message;
+    $("content").hidden = true;
+    $("pdfBtn").disabled = true;
+  }
+
+  async function loadReport() {
+    if (!chainName) {
+      setText("title", "产业链研报");
+      showEmpty("请从仪表盘的「生成研报」入口进入，缺少产业链参数");
+      return;
+    }
+    setText("title", chainName + "产业链研报");
+    try {
+      const data = await request("/api/report/" + encodeURIComponent(chainName));
+      renderContent(data.report);
+      setNote("");
+      $("genBtn").textContent = "重新生成";
+    } catch (err) {
+      if (err.code === 404) {
+        showEmpty("暂无 " + chainName + " 的研报，点击右上角「生成研报」新建一份");
+        setText("meta", "尚未生成");
+      } else {
+        showEmpty("加载失败：" + err.message);
+      }
+    }
+  }
+
+  async function generate() {
+    if (!chainName) return;
+    const button = $("genBtn");
+    button.disabled = true;
+    setNote("正在生成研报，约需 30 秒，请勿关闭页面…", "busy");
+    try {
+      const data = await request("/api/report/" + encodeURIComponent(chainName), { method: "POST" });
+      renderContent(data.report);
+      setNote("生成完成，可直接导出 PDF", "");
+      button.textContent = "重新生成";
+    } catch (err) {
+      setNote("生成失败：" + err.message, "bad");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  $("genBtn").addEventListener("click", generate);
+  $("pdfBtn").addEventListener("click", () => window.print());
+  loadReport();
+</script>
+</body>
+</html>

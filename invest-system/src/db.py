@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS choke_log (
     payload_json TEXT NOT NULL,
     ts           TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS report_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    chain        TEXT NOT NULL,
+    ts           TEXT NOT NULL,
+    payload_json TEXT NOT NULL
+);
 """
 
 
@@ -192,3 +199,32 @@ def get_last_status(conn: sqlite3.Connection, chain: str, trigger_id: str) -> st
     if row is None:
         return None
     return str(row["to_status"])
+
+
+def insert_report(
+    conn: sqlite3.Connection, chain: str, payload: dict, ts: str
+) -> int:
+    """保存一份研报快照并返回记录 id。"""
+    cursor = conn.execute(
+        "INSERT INTO report_log (chain, ts, payload_json) VALUES (?, ?, ?)",
+        (chain, ts, json.dumps(payload, ensure_ascii=False)),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def get_latest_report(conn: sqlite3.Connection, chain: str) -> dict | None:
+    """返回该链最近一份研报，没有则返回 None。"""
+    row = conn.execute(
+        "SELECT ts, payload_json FROM report_log"
+        " WHERE chain = ? ORDER BY id DESC LIMIT 1",
+        (chain,),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        payload = json.loads(row["payload_json"])
+    except json.JSONDecodeError:
+        return None
+    payload["generated_at"] = row["ts"]
+    return payload
