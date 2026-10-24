@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import atexit
+import calendar
 import logging
 import random
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date, timedelta
 from typing import Any
 
 import akshare as ak
@@ -15,13 +17,20 @@ import baostock as bs
 import pandas as pd
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from .db import get_latest_metric, upsert_metric
+from .db import (
+    get_company_fin_history,
+    get_latest_metric,
+    upsert_company_fin,
+    upsert_metric,
+)
 from .models import ChainConfig, Trigger
 
 logger = logging.getLogger(__name__)
 
 HISTORY_LIMIT = 8
 VALUATION_YEARS = 5
+PRICE_LOOKBACK_DAYS = 420
+FIN_QUARTERS = 4
 _VALUATION_FIELDS = {
     "peTTM": "pe_ttm",
     "pbMRQ": "pb_mrq",
@@ -403,8 +412,6 @@ def collect_valuation(
     conn: sqlite3.Connection, symbol: str, years: int = VALUATION_YEARS
 ) -> int:
     """增量拉取估值指标并落库，返回写入的记录数。"""
-    from datetime import date, timedelta
-
     today = date.today()
     last = _last_valuation_date(conn, symbol)
     try:
@@ -426,3 +433,215 @@ def collect_valuation(
     )
     conn.commit()
     return len(rows)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=5, max=30),
+    reraise=True,
+)
+def _query_price_rows(
+    symbol: str, start_date: str, end_date: str
+) -> list[tuple[str, str, str, float]]:
+    """Baostock 后复权日收盘价，返回 (symbol, date, metric_id, value) 列表。"""
+    _ensure_baostock_login()
+    rs = bs.query_history_k_data_plus(
+        _to_bs_code(symbol),
+        "date,close",
+        start_date=start_date,
+        end_date=end_date,
+        frequency="d",
+        adjustflag="1",
+    )
+    if rs.error_code != "0":
+        raise ConnectionError(f"Baostock 收盘价查询失败: {rs.error_msg}")
+    rows: list[tuple[str, str, str, float]] = []
+    while rs.next():
+        row = dict(zip(rs.fields, rs.get_row_data()))
+        day = str(row.get("date", ""))[:10]
+        close = _to_float(row.get("close"))
+        if day and close is not None:
+            rows.append((symbol, day, "close", close))
+    return rows
+
+
+def collect_company_prices(
+    conn: sqlite3.Connection, symbol: str, days: int = PRICE_LOOKBACK_DAYS
+) -> int:
+    """增量拉取单个公司的后复权收盘价，返回写入的记录数。"""
+    today = date.today()
+    latest = get_latest_metric(conn, symbol, "close")
+    try:
+        start = (
+            date.fromisoformat(latest[1]) - timedelta(days=10)
+            if latest
+            else today - timedelta(days=days)
+        )
+    except ValueError:
+        start = today - timedelta(days=days)
+
+    rows = _query_price_rows(symbol, start.isoformat(), today.isoformat())
+    if not rows:
+        return 0
+    conn.executemany(
+        "INSERT OR REPLACE INTO daily_metric (symbol, metric_date, metric_id, value)"
+        " VALUES (?, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+    return len(rows)
+
+
+def _to_float(raw: Any) -> float | None:
+    """把 Baostock 返回的空串或数字字符串转成 float。"""
+    if raw in ("", None):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _read_baostock_rows(result: Any, label: str) -> list[dict[str, str]]:
+    """读取 Baostock 结果集为字典列表，错误码非 0 时抛出。"""
+    if result.error_code != "0":
+        raise ConnectionError(f"Baostock {label} 查询失败: {result.error_msg}")
+    rows: list[dict[str, str]] = []
+    while result.next():
+        rows.append(dict(zip(result.fields, result.get_row_data())))
+    return rows
+
+
+def _optional_fin_rows(query: Callable[[], Any], label: str) -> list[dict[str, str]]:
+    """财务辅助字段缺失或失败时不阻断主指标。"""
+    try:
+        return _read_baostock_rows(query(), label)
+    except Exception as exc:  # noqa: BLE001 - 单个财务接口失败不阻断整体
+        logger.warning("[collector] %s 获取失败: %s", label, exc)
+        return []
+
+
+def _quarter_stat_date(year: int, quarter: int) -> str:
+    """把年份与季度转成报告期截止日。"""
+    month = quarter * 3
+    return f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
+
+
+def _recent_quarters(count: int = FIN_QUARTERS) -> list[tuple[int, int]]:
+    """从当前季度往前列出最近 count 个季度。"""
+    today = date.today()
+    year = today.year
+    quarter = (today.month - 1) // 3 + 1
+    quarters: list[tuple[int, int]] = []
+    for _ in range(count):
+        quarters.append((year, quarter))
+        quarter -= 1
+        if quarter == 0:
+            quarter = 4
+            year -= 1
+    return quarters
+
+
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=2, min=3, max=10),
+    reraise=True,
+)
+def _query_fin_snapshot(symbol: str, year: int, quarter: int) -> dict | None:
+    """拉取单个公司单个报告期的核心财务指标。"""
+    _ensure_baostock_login()
+    code = _to_bs_code(symbol)
+    profit = _read_baostock_rows(
+        bs.query_profit_data(code=code, year=year, quarter=quarter), "利润"
+    )
+    if not profit:
+        return None
+    row = profit[0]
+    stat_date = str(row.get("statDate", ""))[:10]
+    if not stat_date:
+        return None
+
+    growth = _optional_fin_rows(
+        lambda: bs.query_growth_data(code=code, year=year, quarter=quarter), "成长"
+    )
+    balance = _optional_fin_rows(
+        lambda: bs.query_balance_data(code=code, year=year, quarter=quarter), "资产负债"
+    )
+    cash = _optional_fin_rows(
+        lambda: bs.query_cash_flow_data(code=code, year=year, quarter=quarter), "现金流"
+    )
+    dupont = _optional_fin_rows(
+        lambda: bs.query_dupont_data(code=code, year=year, quarter=quarter), "杜邦"
+    )
+    growth_row = growth[0] if growth else {}
+    balance_row = balance[0] if balance else {}
+    cash_row = cash[0] if cash else {}
+    dupont_row = dupont[0] if dupont else {}
+
+    return {
+        "stat_date": stat_date,
+        "pub_date": str(row.get("pubDate", ""))[:10] or stat_date,
+        "values": {
+            "yoy_ni": _to_float(growth_row.get("YOYNI")),
+            "yoy_eps": _to_float(growth_row.get("YOYEPSBasic")),
+            "gp_margin": _to_float(row.get("gpMargin")),
+            "np_margin": _to_float(row.get("npMargin")),
+            "roe": _to_float(row.get("roeAvg")),
+            "cfo_to_np": _to_float(cash_row.get("CFOToNP")),
+            "liability_to_asset": _to_float(balance_row.get("liabilityToAsset")),
+            "asset_turn": _to_float(dupont_row.get("dupontAssetTurn")),
+        },
+    }
+
+
+def collect_company_financials(
+    conn: sqlite3.Connection, symbol: str, quarters: int = FIN_QUARTERS
+) -> int:
+    """补齐最近几个报告期缺失的财务指标，返回写入期数。"""
+    existing = {
+        row["stat_date"]
+        for row in get_company_fin_history(conn, symbol, limit=100)
+    }
+    written = 0
+    for year, quarter in _recent_quarters(quarters):
+        stat_date = _quarter_stat_date(year, quarter)
+        if stat_date in existing:
+            continue
+        snapshot = _query_fin_snapshot(symbol, year, quarter)
+        if snapshot is None:
+            continue
+        upsert_company_fin(
+            conn,
+            symbol,
+            snapshot["stat_date"],
+            snapshot["pub_date"],
+            snapshot["values"],
+        )
+        written += 1
+    return written
+
+
+def collect_companies(conn: sqlite3.Connection, config: ChainConfig) -> dict[str, int]:
+    """按配置里的公司清单采集价格、估值与财务数据。"""
+    totals = {"price": 0, "valuation": 0, "fin": 0}
+    for company in config.companies:
+        symbol = company.ticker.strip()
+        if not symbol:
+            continue
+        fetchers = (
+            ("price", collect_company_prices),
+            ("valuation", collect_valuation),
+            ("fin", collect_company_financials),
+        )
+        for key, fetcher in fetchers:
+            try:
+                totals[key] += fetcher(conn, symbol)
+            except Exception as exc:  # noqa: BLE001 - 单家公司单项失败不阻断其余
+                logger.warning(
+                    "[collector] %s %s %s failed: %s",
+                    config.chain_name,
+                    symbol,
+                    key,
+                    exc,
+                )
+    return totals

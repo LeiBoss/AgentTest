@@ -8,7 +8,7 @@ import sys
 from contextlib import contextmanager
 from typing import Iterator
 
-from src.collector import collect_chain, collect_valuation
+from src.collector import collect_chain, collect_companies, collect_valuation
 from src.compliance import ComplianceError, filter_or_raise
 from src.config_loader import load_chain_config, validate_chain_config
 from src.db import get_last_status, get_metric_history, init_db, set_signal_payload
@@ -59,6 +59,10 @@ def run_chain(chain_yaml_path: str, symbol: str) -> dict:
                 logger.info("[main] valuation rows=%s", collect_valuation(conn, symbol))
             except Exception as exc:  # noqa: BLE001 - 估值抓取失败不阻断主流程
                 logger.warning("[main] valuation skipped: %s", exc)
+            try:
+                logger.info("[main] company rows=%s", collect_companies(conn, config))
+            except Exception as exc:  # noqa: BLE001 - 公司数据抓取失败不阻断主流程
+                logger.warning("[main] company collect skipped: %s", exc)
 
         with _step("judge"):
             transitions = run_judge(conn, config, values)

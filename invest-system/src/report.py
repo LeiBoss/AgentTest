@@ -11,6 +11,7 @@ from typing import Any
 
 from .analytics import indicator_stats
 from .compliance import ComplianceError, filter_or_raise
+from .company import chain_index, company_scorecards
 from .db import get_last_status
 from .llm import LLMError, call_llm
 from .models import ChainConfig
@@ -204,6 +205,7 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         ({k: v for k, v in stage.model_dump().items() if k != "current"} for stage in reversed(config.stages) if stage.current),
         None,
     )
+    companies = company_scorecards(conn, config)
     return {
         "chain": config.chain_name,
         "data_date": max(dates) if dates else None,
@@ -218,7 +220,8 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         "signals": _signal_rows(conn, config),
         "rules": _rule_rows(conn, config, statuses),
         "chokes": _choke_rows(conn, config),
-        "companies": [company.model_dump() for company in config.companies],
+        "chain_index": chain_index(companies),
+        "companies": companies,
         "valuation": valuation_snapshot(conn, symbol),
         "valuation_context": valuation_context(config, symbol),
         "data_gaps": list(config.data_gaps),

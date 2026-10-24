@@ -50,6 +50,7 @@ def _patch_flow(
 ) -> None:
     monkeypatch.setattr(main_module, "collect_chain", lambda *args, **kwargs: values)
     monkeypatch.setattr(main_module, "collect_valuation", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(main_module, "collect_companies", lambda *args, **kwargs: {"price": 0})
     monkeypatch.setattr(main_module, "run_judge", lambda *args, **kwargs: transitions)
     monkeypatch.setattr(
         main_module,

@@ -368,6 +368,60 @@
     letter-spacing: .02em;
   }
 
+  .index-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .index-cell {
+    padding: 13px 15px 14px;
+    background: #fafbfc;
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+  }
+
+  .index-label { font-size: 12px; color: var(--muted); }
+
+  .index-value {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .index-value.pos { color: var(--alert); }
+  .index-value.neg { color: var(--normal); }
+
+  .index-hint { margin-top: 2px; font-size: 11px; color: var(--muted); }
+
+  .cell-num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .cell-num.pos { color: var(--alert); }
+  .cell-num.neg { color: var(--normal); }
+
+  .score-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    background: #f2f3f5;
+    white-space: nowrap;
+  }
+
+  .score-tag.lead { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .score-tag.mid { color: #51606b; background: rgba(81, 96, 107, .09); }
+  .score-tag.lag { color: var(--alert); background: rgba(166, 58, 46, .10); }
+
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -751,7 +805,7 @@
     color: var(--muted);
   }
 
-  #companyWrap .data-table { min-width: 680px; }
+  #companyWrap .data-table { min-width: 780px; }
 
   .cell-code { font-family: var(--mono); color: var(--muted); }
 
@@ -1043,6 +1097,7 @@
     .top-inner { padding: 12px 20px; }
     .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .stat:nth-child(5) { grid-column: span 2; }
+    .index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .signal-row { grid-template-columns: 88px minmax(100px, 1fr) 150px 100px; }
     .signal-note { display: none; }
     .section { padding: 18px 18px 20px; }
@@ -1064,12 +1119,11 @@
     .signal-note { display: none; }
     .data-table { min-width: 780px; }
     .data-table th, .data-table td { padding-left: 8px; padding-right: 8px; }
-    #companyWrap .data-table { min-width: 0; }
+    #companyWrap .data-table { min-width: 720px; }
     #companyWrap .data-table th,
     #companyWrap .data-table td { padding-left: 6px; padding-right: 6px; }
     #companyWrap .data-table th:nth-child(-n+5),
     #companyWrap .data-table td:nth-child(-n+5) { white-space: nowrap; }
-    #companyWrap .data-table td:last-child { min-width: 160px; }
     #valuationWrap .data-table { min-width: 0; }
     #valuationWrap .data-table th,
     #valuationWrap .data-table td { padding-left: 6px; padding-right: 6px; }
@@ -1170,6 +1224,15 @@
           <div class="stat-num primary" id="statLatest">—</div>
           <div class="stat-label">最近信号</div>
         </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>链指数概览</h2>
+          <span class="section-meta" id="chainIndexMeta">等权口径，仅作链内对照</span>
+        </div>
+        <div class="index-grid" id="chainIndexGrid"></div>
+        <p class="footnote">等权收益按成分公司区间涨跌幅平均；离散度越高说明链内分化越大，营收改善面为最近报告期净利润同比为正的公司占比。</p>
       </section>
 
       <section class="section">
@@ -1278,21 +1341,21 @@
 
       <section class="section">
         <div class="section-head">
-          <h2>环节-公司映射</h2>
-          <span class="section-meta" id="companyMeta">按利润池环节归类，仅作研究对照</span>
+          <h2>公司记分卡</h2>
+          <span class="section-meta" id="companyMeta">链内相对打分，仅作研究对照</span>
         </div>
         <div class="table-wrap" id="companyWrap">
           <table class="data-table company-table">
             <thead>
               <tr>
-                <th>公司</th><th>代码</th><th>环节</th><th>阶段</th><th>角色</th><th>说明</th>
+                <th>公司</th><th>环节</th><th>20日</th><th>60日</th><th>营收增速</th><th>毛利率</th><th>ROE</th><th>PE分位</th><th>综合分</th>
               </tr>
             </thead>
             <tbody id="companyBody"></tbody>
           </table>
         </div>
         <div class="empty" id="companiesEmpty">加载中</div>
-        <p class="footnote">映射只说明公司与产业链环节的对应关系，不代表经营或投资判断。</p>
+        <p class="footnote">记分卡为链内相对位置，不是评级；财务取最近报告期，覆盖不足时仅展示原始值、不参与排序。</p>
       </section>
     </div>
 
@@ -1324,6 +1387,7 @@
             <li>量价库存组合同时覆盖价格、库存与量能，三向一致时信号更可靠</li>
             <li>传导滞后越短，指标对报表的前瞻价值越高</li>
             <li>卡点分数高且状态收紧的环节，优先跟踪其价格与库存</li>
+            <li>公司记分卡只在链内比较，覆盖不足会标注数据不足，不构成评级</li>
           </ol>
         </div>
       </section>
@@ -1492,6 +1556,48 @@
     return node;
   }
 
+  function fmtPct(value) {
+    if (value === null || value === undefined) return "—";
+    return (value > 0 ? "+" : "") + value + "%";
+  }
+
+  function fmtNum(value, suffix) {
+    if (value === null || value === undefined) return "—";
+    return value + (suffix || "");
+  }
+
+  function toneOf(value) {
+    if (value === null || value === undefined || value === 0) return "";
+    return value > 0 ? "pos" : "neg";
+  }
+
+  function renderChainIndex(index) {
+    const grid = $("chainIndexGrid");
+    grid.textContent = "";
+    const data = index || {};
+    const cells = [
+      ["20日收益", fmtPct(data.ret_20), toneOf(data.ret_20), "等权平均"],
+      ["60日收益", fmtPct(data.ret_60), toneOf(data.ret_60), "等权平均"],
+      ["120日收益", fmtPct(data.ret_120), toneOf(data.ret_120), "等权平均"],
+      ["20日上涨占比", fmtNum(data.breadth_20, "%"), "", "成分公司"],
+      ["60日离散度", fmtNum(data.dispersion_60), "", "收益标准差"],
+      ["营收改善面", fmtNum(data.growth_breadth, "%"), "", "净利同比为正"],
+      ["中位 PE", fmtNum(data.median_pe), "", "TTM，倍"],
+      ["中位 PB", fmtNum(data.median_pb), "", "MRQ，倍"]
+    ];
+    for (const [label, value, tone, hint] of cells) {
+      const cell = element("div", "index-cell");
+      cell.append(
+        element("div", "index-label", label),
+        element("div", "index-value" + (tone ? " " + tone : ""), value),
+        element("div", "index-hint", hint)
+      );
+      grid.appendChild(cell);
+    }
+    const date = data.date ? "价格日期 " + data.date : "暂无价格数据";
+    setText($("chainIndexMeta"), "等权链指数 · " + date + " · 覆盖 " + (data.price_coverage || "0/0"));
+  }
+
   const LAYER_LABELS = {
     supply: "供给",
     demand: "需求",
@@ -1568,14 +1674,8 @@
   function applyCompanyTarget(ticker) {
     const target = (ticker || "").split(".")[0];
     for (const row of $("companyBody").querySelectorAll("tr")) {
-      const code = row._refs ? row._refs.ticker.textContent : "";
-      const match = target && code.split(".")[0] === target;
-      row.classList.toggle("is-target", Boolean(match));
-      if (match) {
-        row.title = "当前估值采集标的";
-      } else {
-        row.removeAttribute("title");
-      }
+      const key = (row.dataset.key || "").split(".")[0];
+      row.classList.toggle("is-target", Boolean(target) && key === target);
     }
   }
 
@@ -1702,25 +1802,74 @@
     const row = document.createElement("tr");
     const nameCell = document.createElement("td");
     const name = element("div", "cell-name");
-    nameCell.appendChild(name);
-    const ticker = element("td", "cell-code");
-    const link = document.createElement("td");
-    const stage = element("td", "cell-muted");
-    const role = document.createElement("td");
-    const note = element("td", "cell-muted");
-    row.append(nameCell, ticker, link, stage, role, note);
-    row._refs = { name, ticker, link, stage, role, note };
+    const sub = element("div", "cell-sub");
+    nameCell.append(name, sub);
+    const linkCell = document.createElement("td");
+    const link = element("div");
+    const stage = element("div", "cell-sub");
+    linkCell.append(link, stage);
+    const ret20 = element("td", "cell-num");
+    const ret60 = element("td", "cell-num");
+    const growth = element("td", "cell-num");
+    const margin = element("td", "cell-num");
+    const roe = element("td", "cell-num");
+    const peCell = document.createElement("td");
+    const pe = element("span", "pct-tag");
+    peCell.appendChild(pe);
+    const scoreCell = document.createElement("td");
+    const score = element("span", "score-tag");
+    const cover = element("div", "cell-sub");
+    scoreCell.append(score, cover);
+    row.append(nameCell, linkCell, ret20, ret60, growth, margin, roe, peCell, scoreCell);
+    row._refs = { name, sub, link, stage, ret20, ret60, growth, margin, roe, pe, score, cover };
     return row;
+  }
+
+  function setNumCell(cell, value, suffix) {
+    setText(cell, value === null || value === undefined ? "—" : value + suffix);
+    cell.className = "cell-num" + (toneOf(value) ? " " + toneOf(value) : "");
   }
 
   function updateCompanyRow(row, item) {
     const refs = row._refs;
     setText(refs.name, item.name);
-    setText(refs.ticker, item.ticker || "—");
-    setText(refs.link, item.link);
-    setText(refs.stage, item.stage || "—");
-    setText(refs.role, item.role || "—");
-    setText(refs.note, item.note || "—");
+    setText(refs.sub, (item.ticker || "无代码") + (item.role ? " · " + item.role : ""));
+    setText(refs.link, item.link || "—");
+    setText(refs.stage, item.stage || "");
+    setNumCell(refs.ret20, item.ret_20, "%");
+    setNumCell(refs.ret60, item.ret_60, "%");
+    setNumCell(refs.growth, item.yoy_ni, "%");
+    setNumCell(refs.margin, item.gp_margin, "%");
+    setNumCell(refs.roe, item.roe, "%");
+    if (item.pe_pct === null || item.pe_pct === undefined) {
+      refs.pe.className = "pct-tag";
+      setText(refs.pe, item.pe_label || "无数据");
+    } else {
+      const tone = item.pe_label === "高位" ? "high" : item.pe_label === "低位" ? "low" : "mid";
+      refs.pe.className = "pct-tag " + tone;
+      setText(refs.pe, item.pe_label + " " + item.pe_pct + "%");
+    }
+    refs.pe.title = item.pe_ttm === null || item.pe_ttm === undefined
+      ? "暂无 PE"
+      : "PE TTM " + item.pe_ttm;
+    if (item.score === null || item.score === undefined) {
+      refs.score.className = "score-tag";
+      setText(refs.score, "数据不足");
+      setText(refs.cover, "覆盖 " + Math.round((item.coverage || 0) * 100) + "%");
+    } else {
+      const tone = item.score >= 70 ? "lead" : item.score >= 40 ? "mid" : "lag";
+      refs.score.className = "score-tag " + tone;
+      setText(refs.score, item.score_label + " " + item.score);
+      setText(refs.cover, "覆盖 " + Math.round(item.coverage * 100) + "%");
+    }
+    const scores = item.scores || {};
+    const detail = [
+      ["成长", "growth"],
+      ["质量", "quality"],
+      ["估值", "valuation"],
+      ["动量", "momentum"]
+    ].map(([label, key]) => label + " " + fmtNum(scores[key])).join(" · ");
+    row.title = detail + (item.note ? "\n" + item.note : "");
   }
 
   function createSignalRow() {
@@ -1868,6 +2017,7 @@
     renderChainOverview();
 
     renderTransmission(data.transmission);
+    renderChainIndex(data.chain_index);
     const valuationContext = data.valuation_context || {};
     setText($("valuationContext"), valuationContextText(valuationContext));
     const valuation = data.valuation || [];
@@ -1878,7 +2028,7 @@
     toggleEmpty($("ruleList"), $("rulesEmpty"), rules.length > 0, "暂无组合规则");
     const companies = data.companies || [];
     syncKeyed($("companyBody"), companies, (item) => item.ticker || item.name, createCompanyRow, updateCompanyRow);
-    toggleEmpty($("companyWrap"), $("companiesEmpty"), companies.length > 0, "暂无公司映射");
+    toggleEmpty($("companyWrap"), $("companiesEmpty"), companies.length > 0, "暂无公司数据");
     applyCompanyTarget(valuationContext.ticker);
 
     syncKeyed($("metaBody"), triggers, (item) => item.id, createMetaItem, updateMetaItem);

@@ -44,6 +44,7 @@ def pushed(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> list[tuple]:
     monkeypatch.setattr(main_module, "init_db", lambda: conn)
     monkeypatch.setattr(main_module, "collect_chain", lambda *args, **kwargs: dict(VALUES))
     monkeypatch.setattr(main_module, "collect_valuation", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(main_module, "collect_companies", lambda *args, **kwargs: {"price": 0})
     monkeypatch.setattr(llm_module, "call_llm", _fake_llm)
 
     calls: list[tuple] = []

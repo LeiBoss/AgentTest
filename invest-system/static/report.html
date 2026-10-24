@@ -247,6 +247,27 @@
   .pct .tag.low { color: #1d5b7a; background: rgba(29, 91, 122, .10); }
   .pct .tag.mid { color: #51606b; background: rgba(81, 96, 107, .09); }
 
+  .num.pos { color: var(--alert); }
+  .num.neg { color: var(--normal); }
+
+  .company-sub { margin-top: 2px; font-size: 11px; color: var(--muted); }
+
+  .score {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    background: #f2f3f5;
+    white-space: nowrap;
+  }
+
+  .score.lead { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .score.mid { color: #51606b; background: rgba(81, 96, 107, .09); }
+  .score.lag { color: var(--alert); background: rgba(166, 58, 46, .10); }
+
   .valuation-context {
     margin: 0 0 12px;
     font-size: 13px;
@@ -369,12 +390,11 @@
     .kv .num { font-size: 20px; }
     .table-wrap { overflow-x: auto; }
     table { min-width: 620px; }
-    #companyWrap table { min-width: 0; }
+    #companyWrap table { min-width: 720px; }
     #companyWrap th,
     #companyWrap td { padding-left: 6px; padding-right: 6px; }
     #companyWrap th:nth-child(-n+5),
     #companyWrap td:nth-child(-n+5) { white-space: nowrap; }
-    #companyWrap td:last-child { min-width: 160px; }
     #valuationWrap table { min-width: 0; }
     #valuationWrap th,
     #valuationWrap td { padding-left: 6px; padding-right: 6px; }
@@ -448,6 +468,12 @@
           <div class="label">无数据</div>
         </div>
       </div>
+    </section>
+
+    <section class="block">
+      <h2>链指数概览<span class="hint">等权口径，仅作链内对照</span></h2>
+      <div class="kv" id="chainIndex"></div>
+      <p class="note" id="chainIndexNote"></p>
     </section>
 
     <section class="block">
@@ -548,23 +574,26 @@
     </section>
 
     <section class="block">
-      <h2>环节-公司映射</h2>
+      <h2>公司记分卡<span class="hint">链内相对位置，非评级</span></h2>
       <div class="table-wrap" id="companyWrap">
         <table>
           <thead>
             <tr>
               <th>公司</th>
-              <th>代码</th>
               <th>环节</th>
-              <th>阶段</th>
-              <th>角色</th>
-              <th>说明</th>
+              <th>20日</th>
+              <th>60日</th>
+              <th>营收增速</th>
+              <th>毛利率</th>
+              <th>ROE</th>
+              <th>PE分位</th>
+              <th>综合分</th>
             </tr>
           </thead>
           <tbody id="companyBody"></tbody>
         </table>
       </div>
-      <p class="note">映射只说明公司与产业链环节的对应关系，不代表经营或投资判断。</p>
+      <p class="note">财务取最近报告期；覆盖不足时标注数据不足，仅展示原始值，不参与排序。</p>
     </section>
 
     <section class="block">
@@ -678,6 +707,56 @@
     const cell = el("td", "pct");
     cell.appendChild(el("span", "tag " + pctTone(item), pctText(item)));
     return cell;
+  }
+
+  function fmtPct(value) {
+    if (value === null || value === undefined) return "—";
+    return (value > 0 ? "+" : "") + value + "%";
+  }
+
+  function fmtNum(value, suffix) {
+    if (value === null || value === undefined) return "—";
+    return value + (suffix || "");
+  }
+
+  function toneOf(value) {
+    if (value === null || value === undefined || value === 0) return "";
+    return value > 0 ? "pos" : "neg";
+  }
+
+  function numCell(value, suffix) {
+    if (value === null || value === undefined) return el("td", "num", "—");
+    return el("td", "num" + (toneOf(value) ? " " + toneOf(value) : ""), value + suffix);
+  }
+
+  function renderChainIndex(report) {
+    const box = $("chainIndex");
+    box.textContent = "";
+    const index = report.chain_index || {};
+    const cells = [
+      ["20日收益", fmtPct(index.ret_20), toneOf(index.ret_20)],
+      ["60日收益", fmtPct(index.ret_60), toneOf(index.ret_60)],
+      ["120日收益", fmtPct(index.ret_120), toneOf(index.ret_120)],
+      ["20日上涨占比", fmtNum(index.breadth_20, "%"), ""],
+      ["60日离散度", fmtNum(index.dispersion_60), ""],
+      ["营收改善面", fmtNum(index.growth_breadth, "%"), ""],
+      ["中位 PE", fmtNum(index.median_pe), ""],
+      ["中位 PB", fmtNum(index.median_pb), ""]
+    ];
+    for (const [label, value, tone] of cells) {
+      const item = el("div", "item");
+      item.append(
+        el("div", "num" + (tone ? " " + tone : ""), value),
+        el("div", "label", label)
+      );
+      box.appendChild(item);
+    }
+    const date = index.date ? "价格日期 " + index.date : "暂无价格数据";
+    setText(
+      "chainIndexNote",
+      "等权链指数 · " + date + " · 覆盖 " + (index.price_coverage || "0/0")
+        + "；离散度为区间收益标准差，越高说明链内分化越大。"
+    );
   }
 
   function renderTriggers(report) {
@@ -850,8 +929,8 @@
     const companies = report.companies || [];
     if (!companies.length) {
       const row = document.createElement("tr");
-      const cell = el("td", "", "暂无公司映射");
-      cell.colSpan = 6;
+      const cell = el("td", "", "暂无公司数据");
+      cell.colSpan = 9;
       row.appendChild(cell);
       body.appendChild(row);
       return;
@@ -864,13 +943,44 @@
         row.classList.add("is-target");
         row.title = "当前估值采集标的";
       }
+      const nameCell = el("td");
+      nameCell.appendChild(el("div", "", item.name + (match ? "（估值标的）" : "")));
+      nameCell.appendChild(
+        el(
+          "div",
+          "company-sub",
+          (item.ticker || "无代码")
+            + (item.role ? " · " + item.role : "")
+            + (item.stage ? " · " + item.stage : "")
+        )
+      );
+      const scoreCell = el("td");
+      const badge = el("span", "score");
+      if (item.score === null || item.score === undefined) {
+        badge.textContent = "数据不足";
+      } else {
+        badge.className = "score" + (item.score >= 70 ? " lead" : item.score >= 40 ? " mid" : " lag");
+        badge.textContent = item.score_label + " " + item.score;
+      }
+      const scores = item.scores || {};
+      scoreCell.append(
+        badge,
+        el("div", "company-sub", "覆盖 " + Math.round((item.coverage || 0) * 100) + "%")
+      );
+      scoreCell.title = "成长 " + fmtNum(scores.growth)
+        + " · 质量 " + fmtNum(scores.quality)
+        + " · 估值 " + fmtNum(scores.valuation)
+        + " · 动量 " + fmtNum(scores.momentum);
       row.append(
-        el("td", "", item.name + (match ? "（估值标的）" : "")),
-        el("td", "num", item.ticker || "—"),
-        el("td", "", item.link),
-        el("td", "", item.stage || "—"),
-        el("td", "", item.role || "—"),
-        el("td", "", item.note || "—")
+        nameCell,
+        el("td", "", item.link || "—"),
+        numCell(item.ret_20, "%"),
+        numCell(item.ret_60, "%"),
+        numCell(item.yoy_ni, "%"),
+        numCell(item.gp_margin, "%"),
+        numCell(item.roe, "%"),
+        pctCell({ pct_rank: item.pe_pct, pct_label: item.pe_label }),
+        scoreCell
       );
       body.appendChild(row);
     }
@@ -924,6 +1034,7 @@
     renderSkeleton(report);
 
     renderStats(report);
+    renderChainIndex(report);
     renderTriggers(report);
     renderValuation(report);
     setText("signalsReading", report.signals_reading);

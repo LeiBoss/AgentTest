@@ -55,7 +55,33 @@ CREATE TABLE IF NOT EXISTS report_log (
     ts           TEXT NOT NULL,
     payload_json TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS company_fin (
+    symbol             TEXT NOT NULL,
+    stat_date          TEXT NOT NULL,
+    pub_date           TEXT NOT NULL,
+    yoy_ni             REAL,
+    yoy_eps            REAL,
+    gp_margin          REAL,
+    np_margin          REAL,
+    roe                REAL,
+    cfo_to_np          REAL,
+    liability_to_asset REAL,
+    asset_turn         REAL,
+    PRIMARY KEY (symbol, stat_date)
+);
 """
+
+COMPANY_FIN_FIELDS = (
+    "yoy_ni",
+    "yoy_eps",
+    "gp_margin",
+    "np_margin",
+    "roe",
+    "cfo_to_np",
+    "liability_to_asset",
+    "asset_turn",
+)
 
 
 def now_iso() -> str:
@@ -130,6 +156,41 @@ def upsert_metric(
         (symbol, metric_date, metric_id, value),
     )
     conn.commit()
+
+
+def upsert_company_fin(
+    conn: sqlite3.Connection,
+    symbol: str,
+    stat_date: str,
+    pub_date: str,
+    values: dict[str, float | None],
+) -> None:
+    """写入或覆盖一家公司某个报告期的财务指标。"""
+    placeholders = ", ".join("?" for _ in COMPANY_FIN_FIELDS)
+    conn.execute(
+        "INSERT OR REPLACE INTO company_fin"
+        f" (symbol, stat_date, pub_date, {', '.join(COMPANY_FIN_FIELDS)})"
+        f" VALUES (?, ?, ?, {placeholders})",
+        (
+            symbol,
+            stat_date,
+            pub_date,
+            *(values.get(field) for field in COMPANY_FIN_FIELDS),
+        ),
+    )
+    conn.commit()
+
+
+def get_company_fin_history(
+    conn: sqlite3.Connection, symbol: str, limit: int = 2
+) -> list[dict]:
+    """按报告期倒序返回最近 limit 期财务指标。"""
+    rows = conn.execute(
+        "SELECT * FROM company_fin WHERE symbol = ?"
+        " ORDER BY stat_date DESC LIMIT ?",
+        (symbol, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def insert_signal(

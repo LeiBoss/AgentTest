@@ -39,6 +39,64 @@ def _frame() -> pd.DataFrame:
     return pd.DataFrame({"date": ["2026-01-02", "2026-01-09"], "value": [100.0, 101.5]})
 
 
+def _with_companies(payload: dict[str, Any], tickers: list[str]) -> dict[str, Any]:
+    data = deepcopy(payload)
+    data["companies"] = [
+        {"name": f"公司{index}", "ticker": ticker, "link": link}
+        for index, (ticker, link) in enumerate(
+            zip(tickers, ["高端酒企", "区域酒企"]), start=1
+        )
+    ]
+    return data
+
+
+def test_collect_companies_skips_blank_ticker(
+    conn: sqlite3.Connection,
+    valid_payload: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def fake(name: str):
+        def inner(connection: sqlite3.Connection, symbol: str) -> int:
+            calls.append((name, symbol))
+            return 1
+
+        return inner
+
+    monkeypatch.setattr(collector, "collect_company_prices", fake("price"))
+    monkeypatch.setattr(collector, "collect_valuation", fake("valuation"))
+    monkeypatch.setattr(collector, "collect_company_financials", fake("fin"))
+
+    totals = collector.collect_companies(
+        conn, _config(_with_companies(valid_payload, ["600001", ""]))
+    )
+
+    assert totals == {"price": 1, "valuation": 1, "fin": 1}
+    assert calls == [("price", "600001"), ("valuation", "600001"), ("fin", "600001")]
+
+
+def test_collect_companies_isolates_single_failure(
+    conn: sqlite3.Connection,
+    valid_payload: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def failing_price(connection: sqlite3.Connection, symbol: str) -> int:
+        raise ConnectionError(f"{symbol} 价格失败")
+
+    monkeypatch.setattr(collector, "collect_company_prices", failing_price)
+    monkeypatch.setattr(collector, "collect_valuation", lambda connection, symbol: 1)
+    monkeypatch.setattr(
+        collector, "collect_company_financials", lambda connection, symbol: 1
+    )
+
+    totals = collector.collect_companies(
+        conn, _config(_with_companies(valid_payload, ["600001", "600002"]))
+    )
+
+    assert totals == {"price": 0, "valuation": 2, "fin": 2}
+
+
 def test_collect_writes_metrics(
     conn: sqlite3.Connection,
     valid_payload: dict[str, Any],

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from src.db import (
+    get_company_fin_history,
     get_last_status,
     get_latest_metric,
     get_metric_history,
@@ -19,6 +20,7 @@ from src.db import (
     insert_judgment,
     insert_signal,
     now_iso,
+    upsert_company_fin,
     upsert_metric,
 )
 
@@ -109,3 +111,37 @@ def test_insert_choke(conn: sqlite3.Connection) -> None:
 def test_now_iso_is_second_precision() -> None:
     parsed = datetime.fromisoformat(now_iso())
     assert parsed.microsecond == 0
+
+
+def test_upsert_and_read_company_fin(conn: sqlite3.Connection) -> None:
+    upsert_company_fin(
+        conn,
+        "600519",
+        "2026-06-30",
+        "2026-08-20",
+        {"yoy_ni": 30.0, "gp_margin": 91.5, "roe": 20.0},
+    )
+    upsert_company_fin(
+        conn,
+        "600519",
+        "2026-03-31",
+        "2026-04-28",
+        {"yoy_ni": 25.0, "gp_margin": 90.0, "roe": 19.0},
+    )
+    upsert_company_fin(
+        conn,
+        "600519",
+        "2026-06-30",
+        "2026-08-20",
+        {"yoy_ni": 31.0, "gp_margin": 92.0, "roe": 21.0},
+    )
+
+    history = get_company_fin_history(conn, "600519")
+
+    assert [row["stat_date"] for row in history] == ["2026-06-30", "2026-03-31"]
+    assert history[0]["yoy_ni"] == 31.0
+    assert history[0]["gp_margin"] == 92.0
+    assert history[0]["np_margin"] is None
+    assert history[0]["pub_date"] == "2026-08-20"
+    assert get_company_fin_history(conn, "600519", limit=1)[0]["stat_date"] == "2026-06-30"
+    assert get_company_fin_history(conn, "000001") == []
