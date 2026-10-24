@@ -169,6 +169,8 @@ def test_build_report_data_outputs_valuation(
     assert pe["metric_date"] == "2026-10-20"
     assert pe["pct_label"] == "样本不足"
     assert data["valuation"][1]["pct_label"] == "无数据"
+    assert data["valuation_context"]["symbol"] == "600519"
+    assert data["valuation_context"]["company"] is None
 
 
 def test_report_log_roundtrip(seeded: sqlite3.Connection) -> None:

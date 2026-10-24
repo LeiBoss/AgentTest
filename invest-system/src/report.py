@@ -16,7 +16,7 @@ from .llm import LLMError, call_llm
 from .models import ChainConfig
 from .prompts import P6_SYSTEM
 from .rules import evaluate_rule
-from .valuation import valuation_snapshot
+from .valuation import valuation_context, valuation_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +220,7 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         "chokes": _choke_rows(conn, config),
         "companies": [company.model_dump() for company in config.companies],
         "valuation": valuation_snapshot(conn, symbol),
+        "valuation_context": valuation_context(config, symbol),
         "data_gaps": list(config.data_gaps),
     }
 

@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from copy import deepcopy
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from src import collector
 from src.collector import collect_valuation
 from src.db import get_metric_series, init_db, upsert_metric
-from src.valuation import VALUATION_MIN_SAMPLES, valuation_snapshot
+from src.models import ChainConfig
+from src.valuation import VALUATION_MIN_SAMPLES, valuation_context, valuation_snapshot
 
 
 @pytest.fixture()
@@ -61,6 +64,42 @@ def test_snapshot_ranks_latest_value(conn: sqlite3.Connection) -> None:
     assert row["pct_rank"] == 100
     assert row["pct_label"] == "高位"
     assert row["metric_date"] == (date(2025, 1, 1) + timedelta(days=VALUATION_MIN_SAMPLES - 1)).isoformat()
+
+
+def test_context_links_company_and_profit_pool(
+    valid_payload: dict[str, Any],
+) -> None:
+    payload = deepcopy(valid_payload)
+    payload["companies"] = [
+        {
+            "name": "贵州茅台",
+            "ticker": "600519.SH",
+            "link": "高端酒企",
+            "stage": "中游酒企",
+            "role": "龙头",
+        }
+    ]
+    config = ChainConfig.model_validate(payload)
+
+    context = valuation_context(config, "600519")
+
+    assert context["company"] == "贵州茅台"
+    assert context["ticker"] == "600519.SH"
+    assert context["link"] == "高端酒企"
+    assert context["share_pct"] == 55.0
+    assert context["stage"] == "中游酒企"
+    assert context["role"] == "龙头"
+
+
+def test_context_without_matching_company(valid_payload: dict[str, Any]) -> None:
+    config = ChainConfig.model_validate(valid_payload)
+
+    context = valuation_context(config, "000001.SZ")
+
+    assert context["symbol"] == "000001.SZ"
+    assert context["company"] is None
+    assert context["link"] is None
+    assert context["share_pct"] is None
 
 
 def test_collect_valuation_full_history_range(

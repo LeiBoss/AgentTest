@@ -239,6 +239,16 @@
   .pct.mid { color: #51606b; }
   .pct.none { color: var(--muted); }
 
+  .valuation-context {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .valuation-context:empty { display: none; }
+
+  #companyBody tr.is-target td { background: rgba(20, 54, 79, .04); }
+
   .data-notes { margin: 0; padding: 0; list-style: none; }
 
   .data-notes li {
@@ -467,6 +477,7 @@
 
     <section class="block">
       <h2>估值分位对照</h2>
+      <p class="valuation-context" id="valuationContext"></p>
       <div class="table-wrap" id="valuationWrap">
         <table>
           <thead>
@@ -703,9 +714,22 @@
     }
   }
 
+  function valuationContextText(ctx) {
+    if (!ctx || !ctx.symbol) return "";
+    if (!ctx.company) return "标的 " + ctx.symbol + " · 配置中未找到对应公司映射";
+    const bits = ["标的 " + ctx.company + "（" + ctx.ticker + "）"];
+    const share = ctx.share_pct === null || ctx.share_pct === undefined
+      ? ""
+      : "，利润占比 " + ctx.share_pct + "%";
+    bits.push("环节 " + ctx.link + share);
+    if (ctx.role) bits.push(ctx.role);
+    return bits.join(" · ");
+  }
+
   function renderValuation(report) {
     const body = $("valuationBody");
     body.textContent = "";
+    setText("valuationContext", valuationContextText(report.valuation_context));
     const items = report.valuation || [];
     if (!items.length) {
       const row = document.createElement("tr");
@@ -818,10 +842,16 @@
       body.appendChild(row);
       return;
     }
+    const target = (((report.valuation_context || {}).ticker) || "").split(".")[0];
     for (const item of companies) {
       const row = document.createElement("tr");
+      const match = target && (item.ticker || "").split(".")[0] === target;
+      if (match) {
+        row.classList.add("is-target");
+        row.title = "当前估值采集标的";
+      }
       row.append(
-        el("td", "", item.name),
+        el("td", "", item.name + (match ? "（估值标的）" : "")),
         el("td", "num", item.ticker || "—"),
         el("td", "", item.link),
         el("td", "", item.stage || "—"),

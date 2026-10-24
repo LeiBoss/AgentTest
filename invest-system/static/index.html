@@ -795,6 +795,16 @@
     color: var(--muted);
   }
 
+  .valuation-context {
+    margin: -6px 0 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .valuation-context:empty { display: none; }
+
+  #companyBody tr.is-target td { background: rgba(20, 54, 79, .04); }
+
   .rail {
     position: sticky;
     top: 88px;
@@ -1194,6 +1204,7 @@
           <h2>估值分位对照</h2>
           <span class="section-meta" id="valuationMeta">近五年日频分位，仅作历史对照</span>
         </div>
+        <p class="valuation-context" id="valuationContext"></p>
         <div class="table-wrap" id="valuationWrap">
           <table class="data-table">
             <thead>
@@ -1542,6 +1553,32 @@
     refs.status.className = "cell-status " + item.status;
   }
 
+  function valuationContextText(ctx) {
+    if (!ctx || !ctx.symbol) return "";
+    if (!ctx.company) return "标的 " + ctx.symbol + " · 配置中未找到对应公司映射";
+    const bits = ["标的 " + ctx.company + "（" + ctx.ticker + "）"];
+    const share = ctx.share_pct === null || ctx.share_pct === undefined
+      ? ""
+      : "，利润占比 " + ctx.share_pct + "%";
+    bits.push("环节 " + ctx.link + share);
+    if (ctx.role) bits.push(ctx.role);
+    return bits.join(" · ");
+  }
+
+  function applyCompanyTarget(ticker) {
+    const target = (ticker || "").split(".")[0];
+    for (const row of $("companyBody").querySelectorAll("tr")) {
+      const code = row._refs ? row._refs.ticker.textContent : "";
+      const match = target && code.split(".")[0] === target;
+      row.classList.toggle("is-target", Boolean(match));
+      if (match) {
+        row.title = "当前估值采集标的";
+      } else {
+        row.removeAttribute("title");
+      }
+    }
+  }
+
   function createValuationRow() {
     const row = document.createElement("tr");
     const nameCell = document.createElement("td");
@@ -1831,6 +1868,8 @@
     renderChainOverview();
 
     renderTransmission(data.transmission);
+    const valuationContext = data.valuation_context || {};
+    setText($("valuationContext"), valuationContextText(valuationContext));
     const valuation = data.valuation || [];
     syncKeyed($("valuationBody"), valuation, (item) => item.id, createValuationRow, updateValuationRow);
     toggleEmpty($("valuationWrap"), $("valuationEmpty"), valuation.length > 0, "暂无估值数据");
@@ -1840,6 +1879,7 @@
     const companies = data.companies || [];
     syncKeyed($("companyBody"), companies, (item) => item.ticker || item.name, createCompanyRow, updateCompanyRow);
     toggleEmpty($("companyWrap"), $("companiesEmpty"), companies.length > 0, "暂无公司映射");
+    applyCompanyTarget(valuationContext.ticker);
 
     syncKeyed($("metaBody"), triggers, (item) => item.id, createMetaItem, updateMetaItem);
     toggleEmpty($("metaBody"), $("metaEmpty"), triggers.length > 0, "暂无口径说明");

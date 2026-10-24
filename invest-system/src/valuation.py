@@ -7,6 +7,7 @@ from typing import Any
 
 from .analytics import _age_days, _pct_rank
 from .db import get_metric_series
+from .models import ChainConfig
 
 VALUATION_LOOKBACK = 1250
 VALUATION_MIN_SAMPLES = 250
@@ -43,6 +44,44 @@ def _fmt(value: float | None) -> str:
     if value is None:
         return "—"
     return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def _bare_ticker(ticker: str) -> str:
+    """去掉交易所前缀/后缀，便于与采集标的比对。"""
+    return ticker.split(".")[0]
+
+
+def valuation_context(config: ChainConfig, symbol: str) -> dict[str, Any]:
+    """估值标的对应的公司与利润池环节，用于把估值分位放回产业链位置。"""
+    target = _bare_ticker(symbol)
+    company = next(
+        (
+            item
+            for item in config.companies
+            if item.ticker and _bare_ticker(item.ticker) == target
+        ),
+        None,
+    )
+    if company is None:
+        return {
+            "symbol": symbol,
+            "company": None,
+            "ticker": None,
+            "link": None,
+            "share_pct": None,
+            "stage": "",
+            "role": "",
+        }
+    pool = next((item for item in config.profit_pool if item.link == company.link), None)
+    return {
+        "symbol": symbol,
+        "company": company.name,
+        "ticker": company.ticker,
+        "link": company.link,
+        "share_pct": pool.share_pct if pool else None,
+        "stage": company.stage,
+        "role": company.role,
+    }
 
 
 def valuation_snapshot(
