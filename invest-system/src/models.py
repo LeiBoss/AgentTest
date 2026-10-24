@@ -40,6 +40,9 @@ class Trigger(BaseModel):
     crit_range: tuple[float, float]
     rule: RuleDirection
     meaning: str
+    definition: str = ""
+    source_note: str = ""
+    lag_days: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def _check_ranges(self) -> "Trigger":

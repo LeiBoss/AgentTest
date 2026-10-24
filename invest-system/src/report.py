@@ -9,8 +9,9 @@ import sqlite3
 from datetime import datetime
 from typing import Any
 
+from .analytics import indicator_stats
 from .compliance import ComplianceError, filter_or_raise
-from .db import get_last_status, get_metric_history
+from .db import get_last_status
 from .llm import LLMError, call_llm
 from .models import ChainConfig
 from .prompts import P6_SYSTEM
@@ -56,17 +57,18 @@ def _fmt(value: float | None) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
-def _change_text(history: list[tuple[float, str]]) -> str:
-    if len(history) < 2:
+def _change_text(series: list[tuple[float, str]]) -> str:
+    """series 按日期升序，取末两期计算较上期差值。"""
+    if len(series) < 2:
         return ""
-    return f"较上期 {history[0][0] - history[1][0]:+.2f}"
+    return f"较上期 {series[-1][0] - series[-2][0]:+.2f}"
 
 
 def _trigger_rows(conn: sqlite3.Connection, config: ChainConfig, symbol: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for trigger in config.triggers:
-        history = get_metric_history(conn, symbol, trigger.id, limit=2)
-        value = history[0][0] if history else None
+        stats = indicator_stats(conn, symbol, trigger)
+        value = stats["value"]
         status = "no_data" if value is None else (get_last_status(conn, config.chain_name, trigger.id) or "normal")
         rows.append(
             {
@@ -82,8 +84,13 @@ def _trigger_rows(conn: sqlite3.Connection, config: ChainConfig, symbol: str) ->
                 "crit_range": list(trigger.crit_range),
                 "status": status,
                 "status_label": STATUS_LABELS.get(status, status),
-                "change_text": _change_text(history),
-                "metric_date": history[0][1] if history else None,
+                "change_text": _change_text(stats["series"]),
+                "metric_date": stats["metric_date"],
+                "pct_rank": stats["pct_rank"],
+                "pct_label": stats["pct_label"],
+                "samples": stats["samples"],
+                "streak": stats["streak"],
+                "meta": stats["meta"],
                 "meaning": trigger.meaning,
             }
         )
@@ -229,6 +236,8 @@ def _narrative_input(data: dict[str, Any]) -> dict[str, Any]:
                 "unit": item["unit"],
                 "status": item["status_label"],
                 "metric_date": item["metric_date"],
+                "pct_label": item["pct_label"],
+                "streak": item["streak"],
             }
             for item in data["triggers"]
         ],

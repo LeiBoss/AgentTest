@@ -460,6 +460,8 @@
     font-size: 13px;
   }
 
+  #triggerWrap .data-table td { white-space: nowrap; }
+
   .data-table tbody tr:last-child td { border-bottom: 0; }
   .data-table tbody tr:hover td { background: #fafbfc; }
 
@@ -510,6 +512,96 @@
   .cell-status.watch { color: var(--watch); background: rgba(154, 100, 15, .11); }
   .cell-status.alert { color: var(--alert); background: rgba(166, 58, 46, .10); }
   .cell-status.no_data { color: var(--muted); background: #f2f3f5; }
+
+  .pct-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--muted);
+    background: #f2f3f5;
+    white-space: nowrap;
+  }
+
+  .pct-tag.high { color: #8a5312; background: rgba(154, 100, 15, .12); }
+  .pct-tag.low { color: #1d5b7a; background: rgba(29, 91, 122, .10); }
+  .pct-tag.mid { color: #51606b; background: rgba(81, 96, 107, .09); }
+
+  .cell-streak {
+    display: inline-block;
+    margin-left: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--watch);
+    white-space: nowrap;
+  }
+
+  .meta-details {
+    margin-top: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: var(--card);
+  }
+
+  .meta-details summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 11px 16px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .meta-details summary::-webkit-details-marker { display: none; }
+
+  .meta-details summary::before {
+    content: "▸";
+    color: var(--muted);
+    font-size: 11px;
+    transition: transform .15s ease;
+  }
+
+  .meta-details[open] summary::before { transform: rotate(90deg); }
+
+  .meta-hint { font-size: 12px; color: var(--muted); }
+
+  .meta-body {
+    padding: 2px 16px 14px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .meta-item { padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .meta-item:last-child { border-bottom: 0; padding-bottom: 4px; }
+
+  .meta-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    margin-bottom: 4px;
+  }
+
+  .meta-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .meta-src { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .meta-def {
+    margin: 0 0 3px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #4a5560;
+  }
+
+  .meta-foot {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
 
   .signal-row {
     display: grid;
@@ -873,7 +965,7 @@
     .rail-block:last-child:nth-child(odd) { grid-column: auto; }
     .signal-row { grid-template-columns: 72px minmax(90px, 1fr) auto auto; gap: 8px; }
     .signal-note { display: none; }
-    .data-table { min-width: 520px; }
+    .data-table { min-width: 780px; }
     .data-table th, .data-table td { padding-left: 8px; padding-right: 8px; }
     .choke-table { min-width: 0; }
     .choke-table th { padding: 10px 6px; white-space: normal; }
@@ -981,13 +1073,21 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>指标</th><th>层级</th><th>最新值</th><th>较上期</th><th>数据日期</th><th>状态</th>
+                <th>指标</th><th>层级</th><th>最新值</th><th>较上期</th><th>历史分位</th><th>数据日期</th><th>状态</th>
               </tr>
             </thead>
             <tbody id="triggerBody"></tbody>
           </table>
         </div>
         <div class="empty" id="triggersEmpty">加载中</div>
+        <details class="meta-details">
+          <summary>
+            数据口径与时效说明
+            <span class="meta-hint">来源、频率、披露滞后与数据新鲜度</span>
+          </summary>
+          <div class="meta-body" id="metaBody"></div>
+          <div class="empty" id="metaEmpty" hidden>暂无口径说明</div>
+        </details>
       </section>
 
       <section class="section">
@@ -1052,6 +1152,7 @@
           <ol class="rail-list">
             <li>先看数据日期与覆盖，无数据占比高时不宜下结论</li>
             <li>单点异常看「关注」，跨期连续异常才看「触发」</li>
+            <li>历史分位只说明当前位置，需结合规则方向判断哪一端才是压力</li>
             <li>组合规则成立说明多个环节同时异常，传导更可信</li>
             <li>卡点分数高且状态收紧的环节，优先跟踪其价格与库存</li>
           </ol>
@@ -1067,6 +1168,12 @@
           <dd>最新值落入 normal、warn、crit 区间的结果，只描述位置，不预测方向。</dd>
           <dt>无数据</dt>
           <dd>本期未取到该指标，不参与规则判断，也不等同于正常。</dd>
+          <dt>历史分位</dt>
+          <dd>当前值在过去若干期中的百分位排名，只描述位置，不判断好坏；样本不足 20 期时不计算。</dd>
+          <dt>连续异常</dt>
+          <dd>从最新一期往前，连续处于关注或触发的期数，用于区分单点波动与持续偏离。</dd>
+          <dt>披露滞后</dt>
+          <dd>指标统计期结束后到数据可用之间的天数，财报类通常明显长于渠道调研。</dd>
           <dt>组合规则</dt>
           <dd>多个触发器同时满足条件才成立的判断，用来确认传导是否扩散。</dd>
           <dt>卡点</dt>
@@ -1231,15 +1338,19 @@
     const unit = element("span", "cell-unit");
     valueCell.append(value, unit);
     const change = element("td", "cell-muted cell-num");
+    const pctCell = document.createElement("td");
+    const pct = element("span", "pct-tag");
+    pctCell.append(pct);
     const date = element("td", "cell-muted cell-num");
     const statusCell = document.createElement("td");
     const dot = element("span", "status-dot");
     const status = element("span", "cell-status");
     const statusText = element("span");
     status.append(dot, statusText);
-    statusCell.append(status);
-    row.append(nameCell, layer, valueCell, change, date, statusCell);
-    row._refs = { name, id, layer, value, unit, change, date, dot, status, statusText };
+    const streak = element("span", "cell-streak");
+    statusCell.append(status, streak);
+    row.append(nameCell, layer, valueCell, change, pctCell, date, statusCell);
+    row._refs = { name, id, layer, value, unit, change, pct, date, dot, status, statusText, streak };
     return row;
   }
 
@@ -1252,9 +1363,47 @@
     setText(refs.unit, item.value === null ? "" : item.unit || "");
     setText(refs.change, item.change_text || "—");
     setText(refs.date, item.metric_date || "—");
+    if (item.pct_rank === null || item.pct_rank === undefined) {
+      refs.pct.className = "pct-tag none";
+      setText(refs.pct, item.pct_label || "样本不足");
+    } else {
+      const tone = item.pct_label === "高位" ? "high" : item.pct_label === "低位" ? "low" : "mid";
+      refs.pct.className = "pct-tag " + tone;
+      setText(refs.pct, item.pct_label + " " + item.pct_rank + "%");
+    }
+    refs.pct.title = "样本 " + (item.samples || 0) + " 期";
     setText(refs.statusText, item.status_label);
+    setText(refs.streak, item.streak >= 2 ? "连续 " + item.streak + " 期" : "");
     refs.dot.className = "status-dot " + item.status;
     refs.status.className = "cell-status " + item.status;
+  }
+
+  function createMetaItem() {
+    const item = element("div", "meta-item");
+    const head = element("div", "meta-head");
+    const name = element("span", "meta-name");
+    const src = element("span", "meta-src");
+    head.append(name, src);
+    const def = element("p", "meta-def");
+    const foot = element("p", "meta-foot");
+    item.append(head, def, foot);
+    item._refs = { name, src, def, foot };
+    return item;
+  }
+
+  function updateMetaItem(item, data) {
+    const refs = item._refs;
+    const meta = data.meta || {};
+    setText(refs.name, data.name);
+    setText(refs.src, [meta.source, meta.freq].filter(Boolean).join(" · "));
+    setText(refs.def, meta.definition || "暂无口径说明");
+    const parts = [];
+    if (meta.source_note) parts.push("来源：" + meta.source_note);
+    if (meta.lag_days !== null && meta.lag_days !== undefined) {
+      parts.push("披露滞后 " + meta.lag_days + " 天");
+    }
+    parts.push("数据距今 " + (meta.age_days !== null && meta.age_days !== undefined ? meta.age_days + " 天" : "—"));
+    setText(refs.foot, parts.join(" · "));
   }
 
   function createSignalRow() {
@@ -1400,6 +1549,9 @@
 
     renderRailWatch(data);
     renderChainOverview();
+
+    syncKeyed($("metaBody"), triggers, (item) => item.id, createMetaItem, updateMetaItem);
+    toggleEmpty($("metaBody"), $("metaEmpty"), triggers.length > 0, "暂无口径说明");
   }
 
   function renderRailWatch(data) {

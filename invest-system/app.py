@@ -24,12 +24,12 @@ from src.auth import (
     make_token,
     verify_token,
 )
+from src.analytics import indicator_stats
 from src.chain_builder import ChainBuildError, ChainExistsError, create_chain
 from src.config_loader import load_chain_config
 from src.db import (
     get_last_status,
     get_latest_report,
-    get_metric_history,
     init_db,
     insert_report,
     now_iso,
@@ -130,11 +130,11 @@ def _fmt_value(value: float | None) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
-def _change_text(history: list[tuple[float, str]]) -> str:
-    if len(history) < 2:
+def _change_text(series: list[tuple[float, str]]) -> str:
+    """series 按日期升序，取末两期计算较上期差值。"""
+    if len(series) < 2:
         return ""
-    delta = history[0][0] - history[1][0]
-    return f"较上期 {delta:+.2f}"
+    return f"较上期 {series[-1][0] - series[-2][0]:+.2f}"
 
 
 def _latest_signal_ts(conn: sqlite3.Connection, chain: str) -> str | None:
@@ -148,8 +148,8 @@ def _trigger_payload(conn: sqlite3.Connection, config: ChainConfig) -> dict[str,
     items: list[dict[str, Any]] = []
     counts = {"normal": 0, "watch": 0, "alert": 0, "no_data": 0}
     for trigger in config.triggers:
-        history = get_metric_history(conn, SYMBOL, trigger.id, limit=2)
-        value = history[0][0] if history else None
+        stats = indicator_stats(conn, SYMBOL, trigger)
+        value = stats["value"]
         if value is None:
             status = "no_data"
         else:
@@ -167,8 +167,13 @@ def _trigger_payload(conn: sqlite3.Connection, config: ChainConfig) -> dict[str,
                 "unit": trigger.unit,
                 "status": status,
                 "status_label": STATUS_LABELS[status],
-                "change_text": _change_text(history),
-                "metric_date": history[0][1] if history else None,
+                "change_text": _change_text(stats["series"]),
+                "metric_date": stats["metric_date"],
+                "pct_rank": stats["pct_rank"],
+                "pct_label": stats["pct_label"],
+                "samples": stats["samples"],
+                "streak": stats["streak"],
+                "meta": stats["meta"],
             }
         )
     return {

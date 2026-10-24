@@ -103,6 +103,19 @@ def get_metric_history(
     return [(float(row["value"]), str(row["metric_date"])) for row in rows]
 
 
+def get_metric_series(
+    conn: sqlite3.Connection, symbol: str, metric_id: str, limit: int = 250
+) -> list[tuple[float, str]]:
+    """按日期升序返回最近 limit 期 (value, metric_date)，用于分位计算。"""
+    rows = conn.execute(
+        "SELECT value, metric_date FROM daily_metric"
+        " WHERE symbol = ? AND metric_id = ?"
+        " ORDER BY metric_date DESC LIMIT ?",
+        (symbol, metric_id, limit),
+    ).fetchall()
+    return [(float(row["value"]), str(row["metric_date"])) for row in reversed(rows)]
+
+
 def upsert_metric(
     conn: sqlite3.Connection,
     symbol: str,
