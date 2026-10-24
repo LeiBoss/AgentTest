@@ -36,8 +36,75 @@ profit_pool:
     share_pct: 4
     basis: 估算
 
+companies:
+  - name: 贵州茅台
+    ticker: "600519"
+    link: 高端酒企
+    stage: 中游
+    role: 龙头
+    note: 飞天批价主导高端价格带，直销与经销配额并行
+  - name: 五粮液
+    ticker: "000858"
+    link: 高端酒企
+    stage: 中游
+    role: 次龙头
+    note: 普五批价跟随飞天，渠道库存与打款节奏是主要观察点
+  - name: 泸州老窖
+    ticker: "000568"
+    link: 高端酒企
+    stage: 中游
+    role: 高端单品
+    note: 国窖 1573 与特曲共同覆盖高端及次高端
+  - name: 山西汾酒
+    ticker: "600809"
+    link: 区域酒企
+    stage: 中游
+    role: 清香龙头
+    note: 青花系列驱动省外扩张，次高端价格带竞争激烈
+  - name: 古井贡酒
+    ticker: "000596"
+    link: 区域酒企
+    stage: 中游
+    role: 徽酒龙头
+    note: 年份原浆系列为主，省内份额与省外扩张并重
+  - name: 迎驾贡酒
+    ticker: "603198"
+    link: 区域酒企
+    stage: 中游
+    role: 区域扩张
+    note: 洞藏系列带动结构升级，对宴席场景敏感
+  - name: 华致酒行
+    ticker: "300755"
+    link: 经销商
+    stage: 下游
+    role: 酒类流通
+    note: 名酒连锁流通，库存与名酒批价波动直接影响毛利
+  - name: 裕同科技
+    ticker: "002831"
+    link: 包材
+    stage: 上游
+    role: 包装供应
+    note: 高端酒盒与礼盒包装供应商，订单跟随酒企发货节奏
+
 transmission:
   chain: [批价, 渠道利润, 打款意愿, 合同负债, 酒企报表]
+  lags:
+    - src: 批价
+      dst: 渠道利润
+      days: 14
+      note: 约 1-2 周
+    - src: 渠道利润
+      dst: 打款意愿
+      days: 30
+      note: 约 1 个月
+    - src: 打款意愿
+      dst: 合同负债
+      days: 90
+      note: 约 1 个季度
+    - src: 合同负债
+      dst: 酒企报表
+      days: 120
+      note: 约 1-2 个季度
   note: 批价领先渠道利润约 1-2 周，渠道利润领先打款意愿约 1 个月，打款意愿领先合同负债约 1 个季度，合同负债领先报表收入 1-2 个季度；渠道库存是反向滞后变量。
 
 triggers:
@@ -175,6 +242,10 @@ rules:
   - cond: shipment 非正常 AND gross_margin 非正常
     res: 发货与盈利能力双弱
     rationale: 发货增速转负同时毛利率跌破阈值，说明渠道卖不动且酒企开始让利，报表将同步下修。
+  - cond: wholesale_price 非正常 AND shipment 非正常 AND channel_inv 非正常
+    res: 量价库存共振走弱
+    rationale: 批价下行、发货增速转弱与渠道库存抬升同时出现，说明终端动销不足、渠道被动累库，量价库存三个方向一致走弱，比单看任一项更可信。
+    type: price_volume_inv
 
 agents:
   - name: 渠道监测

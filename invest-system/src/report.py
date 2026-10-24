@@ -20,6 +20,7 @@ from .rules import evaluate_rule
 logger = logging.getLogger(__name__)
 
 STATUS_LABELS = {"normal": "正常", "watch": "关注", "alert": "触发", "no_data": "无数据"}
+RULE_TYPE_LABELS = {"condition": "一般组合", "price_volume_inv": "量价库存组合"}
 CHOKE_STATE_LABELS = {
     "tight": "收紧",
     "balanced": "平衡",
@@ -147,6 +148,8 @@ def _rule_rows(
             {
                 "cond": rule.cond,
                 "res": rule.res,
+                "type": rule.type,
+                "type_label": RULE_TYPE_LABELS.get(rule.type, rule.type),
                 "rationale": rule.rationale,
                 "current_match": evaluate_rule(rule, statuses),
                 "last_judgment": last["judgment"] if last else None,
@@ -214,6 +217,7 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         "signals": _signal_rows(conn, config),
         "rules": _rule_rows(conn, config, statuses),
         "chokes": _choke_rows(conn, config),
+        "companies": [company.model_dump() for company in config.companies],
         "data_gaps": list(config.data_gaps),
     }
 
@@ -257,6 +261,7 @@ def _narrative_input(data: dict[str, Any]) -> dict[str, Any]:
             {
                 "cond": item["cond"],
                 "res": item["res"],
+                "type": item["type_label"],
                 "rationale": item["rationale"],
                 "current_match": item["current_match"],
                 "last_judgment": item["last_judgment"],

@@ -9,11 +9,13 @@ import yaml
 from pydantic import ValidationError
 
 from .models import ChainConfig
+from .rules import parse_cond
 
 _MIN_TRIGGERS = 8
 _MAX_TRIGGERS = 10
 _MIN_LAYERS = 5
 _MIN_RULES = 2
+_MIN_COMPOSITE_TERMS = 3
 
 
 def load_chain_config(path: str) -> ChainConfig:
@@ -31,6 +33,7 @@ def validate_chain_config(config: ChainConfig) -> list[str]:
     issues.extend(_check_trigger_count(config))
     issues.extend(_check_layers(config))
     issues.extend(_check_rules(config))
+    issues.extend(_check_composite_rules(config))
     issues.extend(_check_paradox(config))
     issues.extend(_check_stages(config))
     return issues
@@ -85,6 +88,30 @@ def _check_rules(config: ChainConfig) -> list[str]:
     for index, rule in enumerate(config.rules):
         if "AND" not in rule.cond:
             issues.append(f"rules[{index}].cond 必须包含 AND，当前: {rule.cond}")
+    return issues
+
+
+def _check_composite_rules(config: ChainConfig) -> list[str]:
+    """量价库存组合规则必须同时覆盖价格、库存与量能方向。"""
+    issues: list[str] = []
+    layers = {trigger.id: trigger.layer for trigger in config.triggers}
+    for index, rule in enumerate(config.rules):
+        if rule.type != "price_volume_inv":
+            continue
+        try:
+            terms = parse_cond(rule.cond)
+        except ValueError as exc:
+            issues.append(f"rules[{index}].cond 无法解析: {exc}")
+            continue
+        used = {layers.get(trigger_id) for trigger_id, _ in terms}
+        if len(terms) < _MIN_COMPOSITE_TERMS:
+            issues.append(
+                f"rules[{index}] 量价库存组合至少需要 {_MIN_COMPOSITE_TERMS} 个条件项，当前 {len(terms)} 个"
+            )
+        if "price" not in used or "inv" not in used:
+            issues.append(f"rules[{index}] 量价库存组合必须包含 price 与 inv 层级的指标")
+        if not used & {"supply", "demand"}:
+            issues.append(f"rules[{index}] 量价库存组合必须包含 supply 或 demand 层级的量能指标")
     return issues
 
 

@@ -668,6 +668,93 @@
 
   .judgment-time { font-size: 12px; color: var(--muted); }
 
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+  }
+
+  .flow-pair {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .flow-step {
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--card);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .flow-lag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--watch);
+    white-space: nowrap;
+  }
+
+  .flow-lag::before { content: "→ "; color: var(--muted); }
+
+  .flow-arrow { color: var(--muted); font-size: 12px; }
+
+  .rule-card {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rule-card:last-child { border-bottom: 0; }
+
+  .rule-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+
+  .rule-cond {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .type-badge {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    color: #5a6371;
+    background: #f2f3f5;
+    white-space: nowrap;
+  }
+
+  .type-badge.composite { color: #8a5312; background: rgba(154, 100, 15, .12); }
+
+  .rule-res { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  .rule-state {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .rule-state.matched { color: var(--alert); font-weight: 500; }
+
+  .rule-rationale {
+    margin: 5px 0 0;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  #companyWrap .data-table { min-width: 680px; }
+
+  .cell-code { font-family: var(--mono); color: var(--muted); }
+
   .choke-table { min-width: 620px; }
 
   .choke-table tr.paradox td { background: var(--warm); }
@@ -967,6 +1054,15 @@
     .signal-note { display: none; }
     .data-table { min-width: 780px; }
     .data-table th, .data-table td { padding-left: 8px; padding-right: 8px; }
+    #companyWrap .data-table { min-width: 0; }
+    #companyWrap .data-table th,
+    #companyWrap .data-table td { padding-left: 6px; padding-right: 6px; }
+    #companyWrap .data-table th:nth-child(-n+5),
+    #companyWrap .data-table td:nth-child(-n+5) { white-space: nowrap; }
+    #companyWrap .data-table td:last-child { min-width: 160px; }
+    .rule-head { display: block; }
+    .rule-head .rule-cond { display: block; margin-top: 4px; }
+    .rule-state { display: block; margin: 4px 0 0; }
     .choke-table { min-width: 0; }
     .choke-table th { padding: 10px 6px; white-space: normal; }
     .choke-table td { height: 48px; padding: 0 6px; font-size: 13px; }
@@ -1092,12 +1188,30 @@
 
       <section class="section">
         <div class="section-head">
+          <h2>传导路径与滞后</h2>
+          <span class="section-meta" id="transmissionMeta">按传导顺序，标注相邻环节的滞后天数</span>
+        </div>
+        <div class="flow" id="transmissionFlow"></div>
+        <p class="footnote" id="transmissionNote"></p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
           <h2>最近信号</h2>
           <button class="text-btn" id="signalsMore" type="button">查看全部</button>
         </div>
         <div class="error-note" id="signalsError" hidden></div>
         <div class="signal-list" id="signalList"></div>
         <div class="empty" id="signalsEmpty">加载中</div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>组合规则</h2>
+          <span class="section-meta">全部条件同时满足才算成立</span>
+        </div>
+        <div id="ruleList"></div>
+        <div class="empty" id="rulesEmpty">加载中</div>
       </section>
 
       <section class="section">
@@ -1128,6 +1242,25 @@
         <div class="empty" id="chokesEmpty">加载中</div>
         <p class="footnote">卡点指利润集中且难以绕开的环节，不等同于可投。</p>
       </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>环节-公司映射</h2>
+          <span class="section-meta" id="companyMeta">按利润池环节归类，仅作研究对照</span>
+        </div>
+        <div class="table-wrap" id="companyWrap">
+          <table class="data-table company-table">
+            <thead>
+              <tr>
+                <th>公司</th><th>代码</th><th>环节</th><th>阶段</th><th>角色</th><th>说明</th>
+              </tr>
+            </thead>
+            <tbody id="companyBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="companiesEmpty">加载中</div>
+        <p class="footnote">映射只说明公司与产业链环节的对应关系，不代表经营或投资判断。</p>
+      </section>
     </div>
 
     <aside class="rail" aria-label="产业链解读">
@@ -1154,6 +1287,8 @@
             <li>单点异常看「关注」，跨期连续异常才看「触发」</li>
             <li>历史分位只说明当前位置，需结合规则方向判断哪一端才是压力</li>
             <li>组合规则成立说明多个环节同时异常，传导更可信</li>
+            <li>量价库存组合同时覆盖价格、库存与量能，三向一致时信号更可靠</li>
+            <li>传导滞后越短，指标对报表的前瞻价值越高</li>
             <li>卡点分数高且状态收紧的环节，优先跟踪其价格与库存</li>
           </ol>
         </div>
@@ -1176,6 +1311,10 @@
           <dd>指标统计期结束后到数据可用之间的天数，财报类通常明显长于渠道调研。</dd>
           <dt>组合规则</dt>
           <dd>多个触发器同时满足条件才成立的判断，用来确认传导是否扩散。</dd>
+          <dt>量价库存组合</dt>
+          <dd>同时约束价格、库存与量能三类指标的规则，避免只看单一维度误判。</dd>
+          <dt>传导滞后</dt>
+          <dd>相邻环节之间的时间差，按天标注，用于判断指标领先或滞后于报表。</dd>
           <dt>卡点</dt>
           <dd>利润集中、切换与复制难度高的环节，分数越高越难绕开。</dd>
           <dt>paradox</dt>
@@ -1406,6 +1545,83 @@
     setText(refs.foot, parts.join(" · "));
   }
 
+  function renderTransmission(transmission) {
+    const flow = $("transmissionFlow");
+    flow.textContent = "";
+    const chain = (transmission && transmission.chain) || [];
+    const lags = (transmission && transmission.lags) || [];
+    const lagMap = new Map(lags.map((lag) => [lag.src + "→" + lag.dst, lag]));
+    chain.forEach((step, index) => {
+      if (!index) {
+        flow.appendChild(element("span", "flow-step", step));
+        return;
+      }
+      const pair = element("span", "flow-pair");
+      const lag = lagMap.get(chain[index - 1] + "→" + step);
+      if (lag) {
+        const badge = element("span", "flow-lag", lag.days + " 天");
+        badge.title = lag.note || "";
+        pair.appendChild(badge);
+      } else {
+        pair.appendChild(element("span", "flow-arrow", "→"));
+      }
+      pair.appendChild(element("span", "flow-step", step));
+      flow.appendChild(pair);
+    });
+    setText($("transmissionNote"), (transmission && transmission.note) || "");
+  }
+
+  function createRuleCard() {
+    const card = element("article", "rule-card");
+    const head = element("div", "rule-head");
+    const type = element("span", "type-badge");
+    const cond = element("span", "rule-cond");
+    const state = element("span", "rule-state");
+    head.append(type, cond, state);
+    const res = element("div", "rule-res");
+    const rationale = element("p", "rule-rationale");
+    card.append(head, res, rationale);
+    card._refs = { type, cond, state, res, rationale };
+    return card;
+  }
+
+  function updateRuleCard(card, item) {
+    const refs = card._refs;
+    const composite = item.type === "price_volume_inv";
+    refs.type.className = "type-badge" + (composite ? " composite" : "");
+    setText(refs.type, item.type_label || "一般组合");
+    setText(refs.cond, item.cond);
+    refs.state.className = "rule-state" + (item.current_match ? " matched" : "");
+    setText(refs.state, item.current_match ? "条件成立" : "未成立");
+    setText(refs.res, item.res);
+    setText(refs.rationale, item.rationale || "");
+  }
+
+  function createCompanyRow() {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const name = element("div", "cell-name");
+    nameCell.appendChild(name);
+    const ticker = element("td", "cell-code");
+    const link = document.createElement("td");
+    const stage = element("td", "cell-muted");
+    const role = document.createElement("td");
+    const note = element("td", "cell-muted");
+    row.append(nameCell, ticker, link, stage, role, note);
+    row._refs = { name, ticker, link, stage, role, note };
+    return row;
+  }
+
+  function updateCompanyRow(row, item) {
+    const refs = row._refs;
+    setText(refs.name, item.name);
+    setText(refs.ticker, item.ticker || "—");
+    setText(refs.link, item.link);
+    setText(refs.stage, item.stage || "—");
+    setText(refs.role, item.role || "—");
+    setText(refs.note, item.note || "—");
+  }
+
   function createSignalRow() {
     const row = element("div", "signal-row");
     const time = element("div", "signal-time");
@@ -1549,6 +1765,14 @@
 
     renderRailWatch(data);
     renderChainOverview();
+
+    renderTransmission(data.transmission);
+    const rules = data.rules || [];
+    syncKeyed($("ruleList"), rules, (item) => item.cond, createRuleCard, updateRuleCard);
+    toggleEmpty($("ruleList"), $("rulesEmpty"), rules.length > 0, "暂无组合规则");
+    const companies = data.companies || [];
+    syncKeyed($("companyBody"), companies, (item) => item.ticker || item.name, createCompanyRow, updateCompanyRow);
+    toggleEmpty($("companyWrap"), $("companiesEmpty"), companies.length > 0, "暂无公司映射");
 
     syncKeyed($("metaBody"), triggers, (item) => item.id, createMetaItem, updateMetaItem);
     toggleEmpty($("metaBody"), $("metaEmpty"), triggers.length > 0, "暂无口径说明");

@@ -8,7 +8,15 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.models import ChainConfig, ChokeScore, Stage, Trigger
+from src.models import (
+    ChainConfig,
+    ChokeScore,
+    Rule,
+    Stage,
+    Transmission,
+    TransmissionLag,
+    Trigger,
+)
 
 
 def _trigger(**overrides: Any) -> Trigger:
@@ -103,3 +111,69 @@ def test_duplicate_trigger_ids_rejected(valid_payload: dict[str, Any]) -> None:
 def test_stage_current_defaults_false() -> None:
     stage = Stage(yr=2023, t="扩张", d="补库")
     assert stage.current is False
+
+
+def test_rule_type_defaults_to_condition() -> None:
+    rule = Rule(cond="T01 非正常 AND T05 非正常", res="利润加速", rationale="需求与价格共振")
+    assert rule.type == "condition"
+
+
+def test_transmission_lag_must_be_adjacent() -> None:
+    payload = {
+        "chain": ["批价", "渠道利润", "打款意愿"],
+        "lags": [{"src": "批价", "dst": "打款意愿", "days": 30}],
+        "note": "批价领先渠道利润",
+    }
+    with pytest.raises(ValidationError, match="不是 chain 中的相邻节点"):
+        Transmission.model_validate(payload)
+
+
+def test_transmission_lag_duplicate_rejected() -> None:
+    payload = {
+        "chain": ["批价", "渠道利润"],
+        "lags": [
+            {"src": "批价", "dst": "渠道利润", "days": 7},
+            {"src": "批价", "dst": "渠道利润", "days": 14},
+        ],
+        "note": "批价领先渠道利润",
+    }
+    with pytest.raises(ValidationError, match="重复定义"):
+        Transmission.model_validate(payload)
+
+
+def test_transmission_lag_days_must_be_non_negative() -> None:
+    with pytest.raises(ValidationError):
+        TransmissionLag(src="批价", dst="渠道利润", days=-1)
+
+
+def test_company_link_must_exist(valid_payload: dict[str, Any]) -> None:
+    payload = deepcopy(valid_payload)
+    payload["companies"] = [{"name": "示例酒企", "link": "不存在环节"}]
+    with pytest.raises(ValidationError, match="profit_pool.link"):
+        ChainConfig.model_validate(payload)
+
+
+def test_company_stage_must_exist(valid_payload: dict[str, Any]) -> None:
+    payload = deepcopy(valid_payload)
+    payload["companies"] = [
+        {"name": "示例酒企", "link": "高端酒企", "stage": "不存在的阶段"}
+    ]
+    with pytest.raises(ValidationError, match="skeleton.name"):
+        ChainConfig.model_validate(payload)
+
+
+def test_duplicate_company_ticker_rejected(valid_payload: dict[str, Any]) -> None:
+    payload = deepcopy(valid_payload)
+    payload["companies"] = [
+        {"name": "甲酒企", "ticker": "600519", "link": "高端酒企"},
+        {"name": "乙酒企", "ticker": "600519", "link": "区域酒企"},
+    ]
+    with pytest.raises(ValidationError, match="重复 ticker"):
+        ChainConfig.model_validate(payload)
+
+
+def test_company_stage_optional(valid_payload: dict[str, Any]) -> None:
+    payload = deepcopy(valid_payload)
+    payload["companies"] = [{"name": "示例酒企", "link": "高端酒企"}]
+    config = ChainConfig.model_validate(payload)
+    assert config.companies[0].stage == ""

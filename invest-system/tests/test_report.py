@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,36 @@ def test_generate_report_drops_unverified_evidence(
     report = generate_report(config, seeded, "600519")
 
     assert report["evidence"] == mixed["evidence"][:3]
+
+
+def test_build_report_data_outputs_companies_and_lags(
+    seeded: sqlite3.Connection, valid_payload: dict[str, Any]
+) -> None:
+    payload = deepcopy(valid_payload)
+    payload["transmission"]["lags"] = [
+        {"src": "批价", "dst": "渠道利润", "days": 14, "note": "约 1-2 周"}
+    ]
+    payload["companies"] = [
+        {
+            "name": "贵州茅台",
+            "ticker": "600519",
+            "link": "高端酒企",
+            "stage": "中游酒企",
+            "role": "龙头",
+            "note": "飞天批价主导高端价格带",
+        }
+    ]
+    payload["rules"][0]["type"] = "price_volume_inv"
+    config = ChainConfig.model_validate(payload)
+
+    data = build_report_data(config, seeded, "600519")
+
+    assert data["transmission"]["lags"][0]["days"] == 14
+    assert data["companies"][0]["ticker"] == "600519"
+    assert data["companies"][0]["link"] == "高端酒企"
+    assert data["rules"][0]["type"] == "price_volume_inv"
+    assert data["rules"][0]["type_label"] == "量价库存组合"
+    assert data["rules"][1]["type_label"] == "一般组合"
 
 
 def test_report_log_roundtrip(seeded: sqlite3.Connection) -> None:

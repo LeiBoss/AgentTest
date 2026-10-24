@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 Layer = Literal["price", "inv", "fin", "demand", "supply", "margin"]
 Lead = Literal["lead", "sync", "lag"]
 RuleDirection = Literal["above", "below"]
+RuleType = Literal["condition", "price_volume_inv"]
 ChokeType = Literal[
     "technology", "resource", "capacity", "channel", "regulation", "brand", "ecosystem", "crowded"
 ]
@@ -87,6 +88,7 @@ class Rule(BaseModel):
     cond: str = Field(min_length=1)
     res: str = Field(min_length=1)
     rationale: str
+    type: RuleType = "condition"
 
 
 class Agent(BaseModel):
@@ -145,9 +147,41 @@ class ProfitPoolItem(BaseModel):
     basis: str
 
 
+class Company(BaseModel):
+    name: str = Field(min_length=1)
+    ticker: str = ""
+    link: str = Field(min_length=1)
+    stage: str = ""
+    role: str = ""
+    note: str = ""
+
+
+class TransmissionLag(BaseModel):
+    src: str = Field(min_length=1)
+    dst: str = Field(min_length=1)
+    days: int = Field(ge=0)
+    note: str = ""
+
+
 class Transmission(BaseModel):
     chain: list[str] = Field(min_length=1)
+    lags: list[TransmissionLag] = Field(default_factory=list)
     note: str
+
+    @model_validator(mode="after")
+    def _check_lags(self) -> "Transmission":
+        edges = set(zip(self.chain, self.chain[1:]))
+        seen: set[tuple[str, str]] = set()
+        for lag in self.lags:
+            edge = (lag.src, lag.dst)
+            if edge not in edges:
+                raise ValueError(
+                    f"transmission.lags 中 {lag.src}->{lag.dst} 不是 chain 中的相邻节点"
+                )
+            if edge in seen:
+                raise ValueError(f"transmission.lags 重复定义 {lag.src}->{lag.dst}")
+            seen.add(edge)
+        return self
 
 
 class ChainConfig(BaseModel):
@@ -161,6 +195,7 @@ class ChainConfig(BaseModel):
     agents: list[Agent]
     stages: list[Stage]
     choke_points: list[ChokePoint]
+    companies: list[Company] = Field(default_factory=list)
     data_gaps: list[str] = Field(default_factory=list)
 
     @field_validator("triggers")
@@ -198,4 +233,21 @@ class ChainConfig(BaseModel):
                 raise ValueError(
                     f"choke_points[{index}].tracking_triggers 引用了不存在的 trigger id: {missing}"
                 )
+
+        links = {item.link for item in self.profit_pool}
+        stages = {node.name for node in self.skeleton}
+        tickers: set[str] = set()
+        for index, company in enumerate(self.companies):
+            if company.link not in links:
+                raise ValueError(
+                    f"companies[{index}].link 引用了不存在的 profit_pool.link: {company.link}"
+                )
+            if company.stage and company.stage not in stages:
+                raise ValueError(
+                    f"companies[{index}].stage 引用了不存在的 skeleton.name: {company.stage}"
+                )
+            if company.ticker:
+                if company.ticker in tickers:
+                    raise ValueError(f"companies 存在重复 ticker: {company.ticker}")
+                tickers.add(company.ticker)
         return self

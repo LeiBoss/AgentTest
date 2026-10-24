@@ -178,6 +178,21 @@
 
   .flow .arrow { color: var(--muted); }
 
+  .flow .lag {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--watch);
+    white-space: nowrap;
+  }
+
+  .flow .lag::before { content: "→ "; color: var(--muted); }
+
+  .flow .pair {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
@@ -297,6 +312,19 @@
     color: var(--watch);
   }
 
+  .type-tag {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #5a6371;
+    background: var(--soft);
+  }
+
+  .type-tag.composite { color: #8a5312; background: rgba(154, 100, 15, .12); }
+
   .disclaimer {
     margin-top: 40px;
     padding-top: 16px;
@@ -323,6 +351,13 @@
     .kv .num { font-size: 20px; }
     .table-wrap { overflow-x: auto; }
     table { min-width: 620px; }
+    #companyWrap table { min-width: 0; }
+    #companyWrap th,
+    #companyWrap td { padding-left: 6px; padding-right: 6px; }
+    #companyWrap th:nth-child(-n+5),
+    #companyWrap td:nth-child(-n+5) { white-space: nowrap; }
+    #companyWrap td:last-child { min-width: 160px; }
+    .rule-cond .tag { display: block; margin: 4px 0 0; }
     .top { align-items: flex-start; }
   }
 
@@ -469,6 +504,26 @@
           <tbody id="profitBody"></tbody>
         </table>
       </div>
+    </section>
+
+    <section class="block">
+      <h2>环节-公司映射</h2>
+      <div class="table-wrap" id="companyWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>公司</th>
+              <th>代码</th>
+              <th>环节</th>
+              <th>阶段</th>
+              <th>角色</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody id="companyBody"></tbody>
+        </table>
+      </div>
+      <p class="note">映射只说明公司与产业链环节的对应关系，不代表经营或投资判断。</p>
     </section>
 
     <section class="block">
@@ -651,7 +706,12 @@
     box.textContent = "";
     for (const item of report.rules || []) {
       const card = el("div", "rule" + (item.current_match ? " matched" : ""));
-      const cond = el("div", "rule-cond", item.cond);
+      const cond = el("div", "rule-cond");
+      const composite = item.type === "price_volume_inv";
+      cond.appendChild(
+        el("span", "type-tag" + (composite ? " composite" : ""), item.type_label || "一般组合")
+      );
+      cond.appendChild(document.createTextNode(item.cond));
       if (item.current_match) cond.appendChild(el("span", "tag", "当前条件成立"));
       card.appendChild(cond);
       card.appendChild(el("div", "rule-res", item.res));
@@ -694,6 +754,32 @@
     }
   }
 
+  function renderCompanies(report) {
+    const body = $("companyBody");
+    body.textContent = "";
+    const companies = report.companies || [];
+    if (!companies.length) {
+      const row = document.createElement("tr");
+      const cell = el("td", "", "暂无公司映射");
+      cell.colSpan = 6;
+      row.appendChild(cell);
+      body.appendChild(row);
+      return;
+    }
+    for (const item of companies) {
+      const row = document.createElement("tr");
+      row.append(
+        el("td", "", item.name),
+        el("td", "num", item.ticker || "—"),
+        el("td", "", item.link),
+        el("td", "", item.stage || "—"),
+        el("td", "", item.role || "—"),
+        el("td", "", item.note || "—")
+      );
+      body.appendChild(row);
+    }
+  }
+
   function renderSkeleton(report) {
     const list = $("skeletonList");
     list.textContent = "";
@@ -721,12 +807,23 @@
 
     const flow = $("flow");
     flow.textContent = "";
-    const steps = (report.transmission && report.transmission.chain) || [];
+    const transmission = report.transmission || {};
+    const steps = transmission.chain || [];
+    const lagMap = new Map((transmission.lags || []).map((lag) => [lag.src + "→" + lag.dst, lag]));
     steps.forEach((step, index) => {
-      if (index) flow.appendChild(el("span", "arrow", "→"));
-      flow.appendChild(el("span", "step", step));
+      if (!index) {
+        flow.appendChild(el("span", "step", step));
+        return;
+      }
+      const pair = el("span", "pair");
+      const lag = lagMap.get(steps[index - 1] + "→" + step);
+      const node = lag ? el("span", "lag", lag.days + " 天") : el("span", "arrow", "→");
+      if (lag && lag.note) node.title = lag.note;
+      pair.appendChild(node);
+      pair.appendChild(el("span", "step", step));
+      flow.appendChild(pair);
     });
-    setText("transmissionNote", (report.transmission && report.transmission.note) || "");
+    setText("transmissionNote", transmission.note || "");
     setText("transmissionReading", report.transmission_reading);
     renderSkeleton(report);
 
@@ -739,6 +836,7 @@
     setText("chokeReading", report.choke_reading);
     renderChokes(report);
     renderProfit(report);
+    renderCompanies(report);
     renderList("riskList", report.risks, "暂无额外风险提示");
     setText("watchNext", report.watch_next);
     renderList("gapList", report.data_gaps, "暂无记录的数据缺口");

@@ -115,3 +115,67 @@ def test_trigger_count_out_of_range_reported(
     config = load_chain_config(_write(tmp_path, payload))
     issues = validate_chain_config(config)
     assert any("数量应为 8-10" in issue for issue in issues)
+
+
+def _with_composite(valid_payload: dict[str, Any], cond: str) -> dict[str, Any]:
+    payload = deepcopy(valid_payload)
+    payload["rules"].append(
+        {
+            "cond": cond,
+            "res": "量价库存共振走弱",
+            "rationale": "价格、库存与量能同向走弱",
+            "type": "price_volume_inv",
+        }
+    )
+    return payload
+
+
+def test_composite_rule_passes(
+    tmp_path: Path, valid_payload: dict[str, Any]
+) -> None:
+    payload = _with_composite(
+        valid_payload, "T05 非正常 AND T06 非正常 AND T01 非正常"
+    )
+    config = load_chain_config(_write(tmp_path, payload))
+    assert config.rules[-1].type == "price_volume_inv"
+    assert validate_chain_config(config) == []
+
+
+def test_composite_rule_requires_price_and_inv(
+    tmp_path: Path, valid_payload: dict[str, Any]
+) -> None:
+    payload = _with_composite(
+        valid_payload, "T01 非正常 AND T02 非正常 AND T03 非正常"
+    )
+    config = load_chain_config(_write(tmp_path, payload))
+    issues = validate_chain_config(config)
+    assert any("必须包含 price 与 inv" in issue for issue in issues)
+
+
+def test_composite_rule_requires_volume_layer(
+    tmp_path: Path, valid_payload: dict[str, Any]
+) -> None:
+    payload = _with_composite(
+        valid_payload, "T05 非正常 AND T06 非正常 AND T03 非正常"
+    )
+    config = load_chain_config(_write(tmp_path, payload))
+    issues = validate_chain_config(config)
+    assert any("必须包含 supply 或 demand" in issue for issue in issues)
+
+
+def test_composite_rule_requires_three_terms(
+    tmp_path: Path, valid_payload: dict[str, Any]
+) -> None:
+    payload = _with_composite(valid_payload, "T05 非正常 AND T06 非正常")
+    config = load_chain_config(_write(tmp_path, payload))
+    issues = validate_chain_config(config)
+    assert any("至少需要 3 个条件项" in issue for issue in issues)
+
+
+def test_plain_rule_skips_composite_checks(
+    tmp_path: Path, valid_payload: dict[str, Any]
+) -> None:
+    payload = deepcopy(valid_payload)
+    payload["rules"][0]["cond"] = "T01 非正常 AND T05 非正常"
+    config = load_chain_config(_write(tmp_path, payload))
+    assert validate_chain_config(config) == []
