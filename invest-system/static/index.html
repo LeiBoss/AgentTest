@@ -3,20 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>产业链跟踪</title>
 <style>
   :root {
-    --bg: #f2f1ee;
+    --bg: #f4f5f7;
     --card: #ffffff;
-    --primary: #1a3a52;
-    --text: #23231f;
-    --muted: #7a7a72;
-    --line: #e3e2dd;
-    --normal: #1d6b3d;
-    --watch: #a06a14;
-    --alert: #a83b28;
-    --warm: #faf6ec;
-    --soft: #fafaf8;
+    --primary: #14364f;
+    --text: #161d26;
+    --muted: #68717f;
+    --line: #e5e8ee;
+    --line-soft: #eef0f4;
+    --normal: #0f7a4d;
+    --watch: #9a640f;
+    --alert: #a63a2e;
+    --warm: #fbf6ea;
+    --soft: #f7f8fa;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 6px 16px rgba(16, 24, 40, .03);
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   }
 
   * { box-sizing: border-box; }
@@ -25,42 +30,49 @@
 
   body {
     color: var(--text);
-    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     font-size: 14px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
-  }
-
-  .page {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 36px 44px;
+    text-rendering: optimizeLegibility;
   }
 
   .top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #102636;
+    color: #ffffff;
+  }
+
+  .top-inner {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 24px;
     flex-wrap: wrap;
-    padding-bottom: 28px;
-    border-bottom: 1px solid var(--line);
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 14px 32px;
   }
+
+  .top-left { min-width: 0; }
 
   .brand {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 18px;
     flex-wrap: wrap;
   }
 
   h1 {
     margin: 0;
-    font-size: clamp(32px, 3.2vw, 40px);
+    font-size: 18px;
     font-weight: 600;
-    color: var(--primary);
-    letter-spacing: 0.5px;
-    line-height: 1.25;
+    color: #ffffff;
+    letter-spacing: .01em;
+    line-height: 1.3;
   }
 
   .chain-picker {
@@ -71,53 +83,101 @@
 
   .chain-input {
     font: inherit;
-    font-size: 15px;
-    color: var(--primary);
+    font-size: 13px;
+    color: var(--text);
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 6px 12px;
-    width: 156px;
+    border-radius: 8px;
+    padding: 7px 12px;
+    width: 160px;
+    transition: border-color .15s ease, box-shadow .15s ease;
   }
 
   .chain-input::placeholder { color: var(--muted); }
-  .chain-input:focus { outline: none; border-color: var(--primary); }
+  .chain-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(20, 54, 79, .10);
+  }
   .chain-input:disabled { background: var(--soft); cursor: not-allowed; }
+
+  .top .chain-input {
+    color: #ffffff;
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .18);
+  }
+  .top .chain-input::placeholder { color: rgba(255, 255, 255, .48); }
+  .top .chain-input:focus {
+    border-color: rgba(255, 255, 255, .55);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, .10);
+  }
 
   .chain-load {
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--primary);
-    background: transparent;
+    background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 6px 14px;
+    border-radius: 8px;
+    padding: 7px 14px;
     cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
 
-  .chain-load:hover { background: #eef2f5; border-color: var(--primary); }
+  .chain-load:hover { border-color: var(--primary); }
   .chain-load:disabled { color: var(--muted); cursor: not-allowed; }
 
+  .top .chain-load {
+    color: var(--primary);
+    background: #ffffff;
+    border-color: #ffffff;
+  }
+  .top .chain-load:hover { background: rgba(255, 255, 255, .88); }
+
   .subtitle {
-    margin: 8px 0 0;
-    max-width: 680px;
-    font-size: 15px;
+    margin: 5px 0 0;
+    max-width: 760px;
+    font-size: 12px;
     font-weight: 400;
-    color: var(--muted);
+    color: rgba(255, 255, 255, .56);
+    font-variant-numeric: tabular-nums;
   }
 
   .top-right {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 18px;
     font-size: 12px;
-    color: var(--muted);
+    color: rgba(255, 255, 255, .60);
   }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .nav-link {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    color: rgba(255, 255, 255, .78);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color .15s ease;
+  }
+
+  .nav-link:hover { color: #ffffff; }
 
   .health {
     display: flex;
-    gap: 16px;
+    gap: 14px;
+    color: rgba(255, 255, 255, .58);
   }
 
   .health-item {
@@ -128,79 +188,221 @@
 
   .dot {
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: var(--line);
+    background: rgba(255, 255, 255, .28);
   }
 
-  .health-item.ok .dot { background: var(--normal); }
-  .health-item.bad .dot { background: var(--alert); }
+  .health-item.ok .dot { background: #5cbf8e; }
+  .health-item.bad .dot { background: #e0796a; }
 
   .refresh {
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 7px;
+    background: none;
+    padding: 4px 11px;
+    font: inherit;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .82);
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+
+  .refresh:hover {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .40);
+  }
+
+  .updated { font-size: 12px; }
+
+  .page {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 26px 32px 56px;
+  }
+
+  .chain-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .chain-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chain-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    padding: 5px 12px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, color .15s ease;
+  }
+
+  .chain-item:hover { border-color: #c3ccd8; }
+
+  .chain-item.active {
+    color: #ffffff;
+    background: var(--primary);
+    border-color: var(--primary);
+    font-weight: 500;
+  }
+
+  .chain-item .count {
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chain-item.active .count { color: rgba(255, 255, 255, .66); }
+
+  .chain-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .text-btn {
     border: 0;
     background: none;
     padding: 0;
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--primary);
     cursor: pointer;
   }
 
-  .refresh:hover { text-decoration: underline; }
+  .text-btn:hover { text-decoration: underline; }
 
-  .updated { font-size: 12px; }
+  .chain-actions .text-btn {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    padding: 5px 12px;
+    text-decoration: none;
+  }
+
+  .chain-actions .text-btn:hover {
+    border-color: var(--primary);
+    text-decoration: none;
+  }
+
+  .chain-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .chain-form[hidden] { display: none; }
+
+  .chain-form .chain-input { width: 240px; }
+
+  .chain-note { font-size: 12px; color: var(--muted); }
+  .chain-note.bad { color: var(--alert); }
+  .chain-note.good { color: var(--normal); }
+  .chain-note.busy { color: var(--watch); }
 
   .overview {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-top: 32px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 0;
   }
 
   .stat {
-    border-radius: 6px;
-    padding: 22px 26px;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    gap: 2px;
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
   }
 
-  .stat.normal { background: #edf3ef; }
-  .stat.watch { background: #f7f1e5; }
-  .stat.alert { background: #f7ece9; }
-  .stat.latest { background: #edf1f4; }
-
   .stat-num {
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.1;
+    letter-spacing: -.02em;
     font-variant-numeric: tabular-nums;
   }
 
   .stat-num.normal { color: var(--normal); }
   .stat-num.watch { color: var(--watch); }
   .stat-num.alert { color: var(--alert); }
-  .stat-num.primary { color: var(--primary); }
-
-  .stat-label {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--muted);
+  .stat-num.muted { color: #98a1ad; }
+  .stat-num.primary {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0;
+    font-family: var(--mono);
   }
 
-  .section { margin-top: 36px; }
+  .stat-label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 28px;
+    align-items: start;
+    margin-top: 16px;
+  }
+
+  .main-col { min-width: 0; }
+
+  .section {
+    margin-top: 16px;
+    padding: 20px 22px 22px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .section:first-child { margin-top: 0; }
 
   .section-head {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
+    letter-spacing: .01em;
   }
 
   .section-meta {
@@ -209,95 +411,113 @@
     text-align: right;
   }
 
-  .text-btn {
-    border: 0;
-    background: none;
-    padding: 0;
-    font-size: 14px;
-    color: var(--primary);
-    cursor: pointer;
-  }
-
-  .text-btn:hover { text-decoration: underline; }
-
   .error-note {
     margin: 0 0 12px;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--alert);
   }
 
   .empty {
-    padding: 40px 0;
+    padding: 44px 0;
     text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+  }
+
+  .data-table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+  }
+
+  .data-table th {
+    padding: 10px 12px;
+    background: var(--soft);
+    border-bottom: 1px solid var(--line);
+    text-align: left;
     font-size: 12px;
+    font-weight: 500;
     color: var(--muted);
+    white-space: nowrap;
   }
 
-  .trigger-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+  .data-table th:first-child,
+  .data-table td:first-child { padding-left: 16px; }
+
+  .data-table th:last-child,
+  .data-table td:last-child { padding-right: 16px; }
+
+  .data-table td {
+    height: 52px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
   }
 
-  .trigger-card {
-    background: var(--card);
-    border-radius: 6px;
-    border-left: 4px solid var(--normal);
-    padding: 26px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  }
+  .data-table tbody tr:last-child td { border-bottom: 0; }
+  .data-table tbody tr:hover td { background: #fafbfc; }
 
-  .trigger-card:hover { background: var(--soft); }
-  .trigger-card.watch { border-left-color: var(--watch); }
-  .trigger-card.alert { border-left-color: var(--alert); }
+  .cell-name { color: var(--text); font-size: 14px; font-weight: 500; }
 
-  .trigger-name {
-    font-size: 14px;
-    font-weight: 400;
+  .cell-sub {
+    margin-top: 2px;
+    font-size: 11px;
     color: var(--muted);
-    line-height: 1.4;
-    min-height: 20px;
+    font-family: var(--mono);
   }
 
-  .trigger-value-row {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    margin: 10px 0 8px;
-  }
-
-  .trigger-value {
-    font-size: 30px;
-    font-weight: 600;
-    line-height: 1.2;
+  .cell-num {
+    font-family: var(--mono);
     font-variant-numeric: tabular-nums;
   }
 
-  .trigger-unit {
-    font-size: 14px;
+  .cell-unit {
+    margin-left: 4px;
+    font-size: 11px;
     color: var(--muted);
   }
 
-  .trigger-foot {
-    display: flex;
+  .cell-muted { color: var(--muted); }
+
+  .cell-status {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 6px;
     font-size: 12px;
+    line-height: 1.5;
     color: var(--muted);
-    min-height: 18px;
+    background: var(--soft);
+    white-space: nowrap;
   }
 
-  .trigger-status.normal { color: var(--normal); }
-  .trigger-status.watch { color: var(--watch); }
-  .trigger-status.alert { color: var(--alert); }
+  .status-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .cell-status.normal { color: var(--normal); background: rgba(15, 122, 77, .09); }
+  .cell-status.watch { color: var(--watch); background: rgba(154, 100, 15, .11); }
+  .cell-status.alert { color: var(--alert); background: rgba(166, 58, 46, .10); }
+  .cell-status.no_data { color: var(--muted); background: #f2f3f5; }
 
   .signal-row {
     display: grid;
-    grid-template-columns: 80px minmax(110px, 1.2fr) 170px 120px minmax(0, 2fr);
+    grid-template-columns: 88px minmax(110px, 1.2fr) 170px 120px minmax(0, 2fr);
     gap: 16px;
     align-items: center;
-    min-height: 52px;
-    border-bottom: 1px solid var(--line);
+    min-height: 54px;
+    border-bottom: 1px solid var(--line-soft);
   }
 
   .signal-row:last-child { border-bottom: 0; }
@@ -305,13 +525,13 @@
   .signal-time {
     font-size: 12px;
     color: var(--muted);
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: var(--mono);
     font-variant-numeric: tabular-nums;
   }
 
   .signal-name { font-size: 14px; }
 
-  .signal-shift { font-size: 14px; }
+  .signal-shift { font-size: 13px; }
 
   .signal-arrow { padding: 0 4px; color: var(--muted); }
 
@@ -320,9 +540,9 @@
   .shift-from.alert, .shift-to.alert { color: var(--alert); }
 
   .signal-value {
-    font-size: 14px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: var(--mono);
   }
 
   .signal-note {
@@ -334,23 +554,21 @@
   }
 
   .judgment-card {
-    background: var(--soft);
-    border-radius: 6px;
-    padding: 24px;
-    margin-bottom: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line-soft);
   }
 
-  .judgment-card:last-child { margin-bottom: 0; }
+  .judgment-card:last-child { border-bottom: 0; }
 
   .judgment-cond {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--muted);
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: var(--mono);
   }
 
   .judgment-text {
-    margin: 8px 0 10px;
-    font-size: 18px;
+    margin: 5px 0 6px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
     line-height: 1.6;
@@ -358,38 +576,15 @@
 
   .judgment-time { font-size: 12px; color: var(--muted); }
 
-  .table-wrap { overflow-x: auto; }
+  .choke-table { min-width: 620px; }
 
-  .choke-table {
-    width: 100%;
-    min-width: 720px;
-    border-collapse: collapse;
-  }
-
-  .choke-table th {
-    padding: 0 12px 10px;
-    border-bottom: 1px solid var(--line);
-    text-align: left;
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-
-  .choke-table td {
-    height: 60px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
-  }
-
-  .choke-table tr.paradox { background: var(--warm); }
+  .choke-table tr.paradox td { background: var(--warm); }
 
   .score-num {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: var(--mono);
   }
 
   .score-total { font-size: 12px; color: var(--muted); }
@@ -405,6 +600,7 @@
     display: block;
     width: 3px;
     height: 14px;
+    border-radius: 2px;
     background: var(--muted);
   }
 
@@ -420,114 +616,276 @@
     color: var(--muted);
   }
 
-  .nav {
+  .rail {
+    position: sticky;
+    top: 88px;
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 0;
   }
 
-  .nav-link {
-    border: 0;
-    background: none;
-    padding: 0;
-    font: inherit;
+  .rail-block {
+    padding: 18px 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .rail-block h3 {
+    margin: 0 0 12px;
     font-size: 13px;
-    color: var(--primary);
-    text-decoration: none;
-    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: .01em;
   }
 
-  .nav-link:hover { text-decoration: underline; }
+  .rail-body {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.7;
+  }
 
-  .chain-bar {
+  .rail-kv {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    margin-top: 24px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--line);
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line-soft);
   }
 
-  .chain-items {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 24px;
+  .rail-kv:last-of-type { border-bottom: 0; }
+
+  .rail-kv span { color: var(--muted); }
+
+  .rail-kv strong {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
   }
 
-  .chain-item {
-    border: 0;
-    border-bottom: 2px solid transparent;
-    background: none;
-    padding: 2px 0;
-    font: inherit;
-    font-size: 15px;
+  .rail-text {
+    margin: 8px 0 0;
     color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.8;
+  }
+
+  .rail-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rail-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rail-list li:last-child { border-bottom: 0; }
+
+  .rail-item-sub {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .rail-chain {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    text-align: left;
     cursor: pointer;
   }
 
-  .chain-item:hover { color: var(--primary); }
+  .rail-chain:last-child { border-bottom: 0; }
+  .rail-chain:hover { color: var(--primary); }
+  .rail-chain.active { color: var(--primary); font-weight: 600; }
 
-  .chain-item.active {
-    color: var(--primary);
-    font-weight: 600;
-    border-bottom-color: var(--primary);
-  }
-
-  .chain-item .count {
-    margin-left: 6px;
-    font-size: 12px;
-    font-weight: 400;
+  .rail-chain-meta {
     color: var(--muted);
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  .chain-form {
+  .rail-status.watch { color: var(--watch); }
+  .rail-status.alert { color: var(--alert); }
+  .rail-status.normal { color: var(--normal); }
+
+  .rail-label {
+    margin: 10px 0 2px;
+    font-size: 11px;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+
+  .rail-label:first-child { margin-top: 0; }
+
+  .glossary { margin: 0; }
+
+  .glossary dt {
+    margin-top: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .glossary dt:first-child { margin-top: 0; }
+
+  .glossary dd {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .data-panel {
+    margin-top: 14px;
+    padding: 18px 20px 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .data-panel[hidden] { display: none; }
+
+  .data-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .data-panel-head strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .data-ids {
+    margin: 10px 0 12px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+    white-space: pre-line;
+  }
+
+  .data-input {
+    display: block;
+    width: 100%;
+    min-height: 150px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    resize: vertical;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+
+  .data-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--card);
+    box-shadow: 0 0 0 3px rgba(20, 54, 79, .10);
+  }
+
+  .data-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
     margin-top: 14px;
   }
 
-  .chain-form[hidden] { display: none; }
+  .data-actions label.chain-load { display: inline-block; }
 
-  .chain-form .chain-input { width: 240px; }
+  #dataImport {
+    color: #ffffff;
+    background: var(--primary);
+    border-color: var(--primary);
+  }
 
-  .chain-note { font-size: 12px; color: var(--muted); }
-  .chain-note.bad { color: var(--alert); }
-  .chain-note.good { color: var(--normal); }
-  .chain-note.busy { color: var(--watch); }
+  #dataImport:hover { background: #1c4a6b; }
 
-  @media (max-width: 1023px) {
-    .trigger-grid { grid-template-columns: repeat(2, 1fr); }
+  .data-note {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: pre-wrap;
+  }
+
+  .data-note.bad { color: var(--alert); }
+  .data-note.good { color: var(--normal); }
+  .data-note.busy { color: var(--watch); }
+
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: 1fr; gap: 20px; }
+    .rail {
+      position: static;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+    .rail-block:last-child:nth-child(odd) { grid-column: span 2; }
   }
 
   @media (max-width: 900px) {
-    .overview { grid-template-columns: repeat(2, 1fr); }
-    .signal-row { grid-template-columns: 80px minmax(100px, 1fr) 150px 100px; }
+    .page { padding: 20px 20px 44px; }
+    .top-inner { padding: 12px 20px; }
+    .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat:nth-child(5) { grid-column: span 2; }
+    .signal-row { grid-template-columns: 88px minmax(100px, 1fr) 150px 100px; }
     .signal-note { display: none; }
+    .section { padding: 18px 18px 20px; }
   }
 
-  @media (max-width: 639px) {
-    .page { padding: 28px 20px; }
-    .top { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .top-right { align-items: flex-start; }
+  @media (max-width: 640px) {
+    .top { position: static; }
+    .top-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .top-right { justify-content: flex-start; }
+    .brand { gap: 10px; }
+    h1 { font-size: 16px; }
     .chain-input { width: 132px; }
     .chain-form .chain-input { width: 100%; }
-    .trigger-grid { grid-template-columns: 1fr; }
+    .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat:nth-child(5) { grid-column: span 2; }
+    .rail { grid-template-columns: 1fr; }
+    .rail-block:last-child:nth-child(odd) { grid-column: auto; }
     .signal-row { grid-template-columns: 72px minmax(90px, 1fr) auto auto; gap: 8px; }
     .signal-note { display: none; }
+    .data-table { min-width: 520px; }
+    .data-table th, .data-table td { padding-left: 8px; padding-right: 8px; }
     .choke-table { min-width: 0; }
-    .choke-table th { padding: 0 6px 10px; white-space: normal; }
+    .choke-table th { padding: 10px 6px; white-space: normal; }
     .choke-table td { height: 48px; padding: 0 6px; font-size: 13px; }
     .score-num { font-size: 16px; }
+    .section-head { flex-wrap: wrap; gap: 4px 12px; }
   }
 </style>
 </head>
 <body>
-<main class="page">
-  <header class="top">
+<header class="top">
+  <div class="top-inner">
     <div class="top-left">
       <div class="brand">
         <h1 id="pageTitle"></h1>
@@ -538,7 +896,7 @@
           <button class="chain-load" id="chainLoad" type="button">加载</button>
         </div>
       </div>
-      <p class="subtitle" id="subtitle">加载中</p>
+      <p class="subtitle" id="subtitle">正在加载数据…</p>
     </div>
     <div class="top-right">
       <div class="nav">
@@ -553,11 +911,16 @@
       <button class="refresh" id="refreshBtn" type="button">刷新</button>
       <div class="updated" id="updated">最后更新：—</div>
     </div>
-  </header>
+  </div>
+</header>
 
+<main class="page">
   <section class="chain-bar" aria-label="产业链列表">
     <div class="chain-items" id="chainItems"></div>
-    <button class="text-btn" id="newChainToggle" type="button">新增产业链</button>
+    <div class="chain-actions">
+      <button class="text-btn" id="dataToggle" type="button">录入数据</button>
+      <button class="text-btn" id="newChainToggle" type="button">新增产业链</button>
+    </div>
   </section>
 
   <div class="chain-form" id="chainForm" hidden>
@@ -566,73 +929,158 @@
     <span class="chain-note" id="chainNote"></span>
   </div>
 
-  <section class="overview" aria-label="状态概览">
-    <div class="stat normal">
-      <div class="stat-num normal" id="statNormal">—</div>
-      <div class="stat-label">正常</div>
+  <div class="data-panel" id="dataPanel" hidden>
+    <div class="data-panel-head">
+      <strong id="dataChain">录入渠道指标</strong>
+      <span>表头 metric_date,metric_id,value；日期不晚于今天，数值只写数字</span>
     </div>
-    <div class="stat watch">
-      <div class="stat-num watch" id="statWatch">—</div>
-      <div class="stat-label">关注</div>
+    <div class="data-ids" id="dataIds"></div>
+    <textarea class="data-input" id="dataCsv" spellcheck="false"
+      placeholder="metric_date,metric_id,value&#10;2026-10-24,chip_price_index,102"></textarea>
+    <div class="data-actions">
+      <label class="chain-load" for="dataFile">选择 CSV 文件</label>
+      <input id="dataFile" type="file" accept=".csv,text/csv" hidden>
+      <button class="text-btn" id="dataFill" type="button">填入表头</button>
+      <button class="chain-load" id="dataImport" type="button">导入</button>
+      <span class="data-note" id="dataNote"></span>
     </div>
-    <div class="stat alert">
-      <div class="stat-num alert" id="statAlert">—</div>
-      <div class="stat-label">触发</div>
-    </div>
-    <div class="stat latest">
-      <div class="stat-num primary" id="statLatest">—</div>
-      <div class="stat-label">最近信号</div>
-    </div>
-  </section>
+  </div>
 
-  <section class="section">
-    <div class="section-head">
-      <h2>触发器状态</h2>
-      <span class="section-meta" id="triggerCount">共 — 个</span>
-    </div>
-    <div class="error-note" id="triggersError" hidden></div>
-    <div class="trigger-grid" id="triggerGrid"></div>
-    <div class="empty" id="triggersEmpty">加载中</div>
-  </section>
+  <div class="layout">
+    <div class="main-col">
+      <section class="overview" aria-label="状态概览">
+        <div class="stat normal">
+          <div class="stat-num normal" id="statNormal">—</div>
+          <div class="stat-label">正常</div>
+        </div>
+        <div class="stat watch">
+          <div class="stat-num watch" id="statWatch">—</div>
+          <div class="stat-label">关注</div>
+        </div>
+        <div class="stat alert">
+          <div class="stat-num alert" id="statAlert">—</div>
+          <div class="stat-label">触发</div>
+        </div>
+        <div class="stat nodata">
+          <div class="stat-num muted" id="statNoData">—</div>
+          <div class="stat-label">无数据</div>
+        </div>
+        <div class="stat latest">
+          <div class="stat-num primary" id="statLatest">—</div>
+          <div class="stat-label">最近信号</div>
+        </div>
+      </section>
 
-  <section class="section">
-    <div class="section-head">
-      <h2>最近信号</h2>
-      <button class="text-btn" id="signalsMore" type="button">查看全部</button>
-    </div>
-    <div class="error-note" id="signalsError" hidden></div>
-    <div class="signal-list" id="signalList"></div>
-    <div class="empty" id="signalsEmpty">加载中</div>
-  </section>
+      <section class="section">
+        <div class="section-head">
+          <h2>触发器状态</h2>
+          <span class="section-meta" id="triggerCount">共 — 个</span>
+        </div>
+        <div class="error-note" id="triggersError" hidden></div>
+        <div class="table-wrap" id="triggerWrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>指标</th><th>层级</th><th>最新值</th><th>较上期</th><th>数据日期</th><th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="triggerBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="triggersEmpty">加载中</div>
+      </section>
 
-  <section class="section">
-    <div class="section-head">
-      <h2>组合规则判断</h2>
-    </div>
-    <div class="error-note" id="judgmentsError" hidden></div>
-    <div id="judgmentList"></div>
-    <div class="empty" id="judgmentsEmpty">加载中</div>
-  </section>
+      <section class="section">
+        <div class="section-head">
+          <h2>最近信号</h2>
+          <button class="text-btn" id="signalsMore" type="button">查看全部</button>
+        </div>
+        <div class="error-note" id="signalsError" hidden></div>
+        <div class="signal-list" id="signalList"></div>
+        <div class="empty" id="signalsEmpty">加载中</div>
+      </section>
 
-  <section class="section">
-    <div class="section-head">
-      <h2>卡点分析</h2>
-      <span class="section-meta">paradox 标记表示卡点评分高但利润占比低</span>
+      <section class="section">
+        <div class="section-head">
+          <h2>规则判断记录</h2>
+        </div>
+        <div class="error-note" id="judgmentsError" hidden></div>
+        <div id="judgmentList"></div>
+        <div class="empty" id="judgmentsEmpty">加载中</div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>卡点分析</h2>
+          <span class="section-meta" id="chokeMeta">按环节利润集中度与替代难度排序</span>
+        </div>
+        <div class="error-note" id="chokesError" hidden></div>
+        <div class="table-wrap" id="chokeWrap">
+          <table class="data-table choke-table">
+            <thead>
+              <tr>
+                <th>环节</th><th>类型</th><th>评分</th><th>状态</th><th>利润占比</th><th>标记</th>
+              </tr>
+            </thead>
+            <tbody id="chokeBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="chokesEmpty">加载中</div>
+        <p class="footnote">卡点指利润集中且难以绕开的环节，不等同于可投。</p>
+      </section>
     </div>
-    <div class="error-note" id="chokesError" hidden></div>
-    <div class="table-wrap" id="chokeWrap">
-      <table class="choke-table">
-        <thead>
-          <tr>
-            <th>环节</th><th>类型</th><th>评分</th><th>状态</th><th>利润占比</th><th>标记</th>
-          </tr>
-        </thead>
-        <tbody id="chokeBody"></tbody>
-      </table>
-    </div>
-    <div class="empty" id="chokesEmpty">加载中</div>
-    <p class="footnote">卡点不等于可投，需结合利润兑现和估值定价三维判断</p>
-  </section>
+
+    <aside class="rail" aria-label="产业链解读">
+      <section class="rail-block">
+        <h3>产业链速览</h3>
+        <div class="rail-body" id="railSummary">加载中</div>
+      </section>
+
+      <section class="rail-block">
+        <h3>当前观察</h3>
+        <div class="rail-body" id="railWatch">加载中</div>
+      </section>
+
+      <section class="rail-block">
+        <h3>产业链数据</h3>
+        <div class="rail-body" id="railChains">加载中</div>
+      </section>
+
+      <section class="rail-block">
+        <h3>如何解读</h3>
+        <div class="rail-body">
+          <ol class="rail-list">
+            <li>先看数据日期与覆盖，无数据占比高时不宜下结论</li>
+            <li>单点异常看「关注」，跨期连续异常才看「触发」</li>
+            <li>组合规则成立说明多个环节同时异常，传导更可信</li>
+            <li>卡点分数高且状态收紧的环节，优先跟踪其价格与库存</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="rail-block">
+        <h3>名词解释</h3>
+        <dl class="glossary">
+          <dt>触发器</dt>
+          <dd>把某一环节的变化量化成区间指标，按正常、警告、严重三档判定。</dd>
+          <dt>正常 / 关注 / 触发</dt>
+          <dd>最新值落入 normal、warn、crit 区间的结果，只描述位置，不预测方向。</dd>
+          <dt>无数据</dt>
+          <dd>本期未取到该指标，不参与规则判断，也不等同于正常。</dd>
+          <dt>组合规则</dt>
+          <dd>多个触发器同时满足条件才成立的判断，用来确认传导是否扩散。</dd>
+          <dt>卡点</dt>
+          <dd>利润集中、切换与复制难度高的环节，分数越高越难绕开。</dd>
+          <dt>paradox</dt>
+          <dd>卡点评分高但利润占比低，说明价值与利润错配，需单独核对。</dd>
+          <dt>利润池</dt>
+          <dd>各环节的利润占比，用于判断钱留在产业链的哪一段。</dd>
+          <dt>阶段</dt>
+          <dd>配置中的产业发展阶段，current 标记当前所处阶段。</dd>
+        </dl>
+      </section>
+    </aside>
+  </div>
 </main>
 
 <script>
@@ -640,6 +1088,7 @@
     chain: null,
     chains: [],
     items: [],
+    triggers: [],
     signalsLimit: 10,
     judgments: []
   };
@@ -761,31 +1210,51 @@
     return node;
   }
 
-  function createTriggerCard() {
-    const card = element("article", "trigger-card");
-    const name = element("div", "trigger-name");
-    const row = element("div", "trigger-value-row");
-    const value = element("span", "trigger-value");
-    const unit = element("span", "trigger-unit");
-    row.append(value, unit);
-    const foot = element("div", "trigger-foot");
-    const status = element("span", "trigger-status");
-    const change = element("span", "trigger-change");
-    foot.append(status, change);
-    card.append(name, row, foot);
-    card._refs = { name, value, unit, status, change };
-    return card;
+  const LAYER_LABELS = {
+    supply: "供给",
+    demand: "需求",
+    price: "价格",
+    inv: "库存",
+    margin: "利润",
+    fin: "财务"
+  };
+
+  function createTriggerRow() {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const name = element("div", "cell-name");
+    const id = element("div", "cell-sub");
+    nameCell.append(name, id);
+    const layer = element("td", "cell-muted");
+    const valueCell = document.createElement("td");
+    const value = element("span", "cell-num");
+    const unit = element("span", "cell-unit");
+    valueCell.append(value, unit);
+    const change = element("td", "cell-muted cell-num");
+    const date = element("td", "cell-muted cell-num");
+    const statusCell = document.createElement("td");
+    const dot = element("span", "status-dot");
+    const status = element("span", "cell-status");
+    const statusText = element("span");
+    status.append(dot, statusText);
+    statusCell.append(status);
+    row.append(nameCell, layer, valueCell, change, date, statusCell);
+    row._refs = { name, id, layer, value, unit, change, date, dot, status, statusText };
+    return row;
   }
 
-  function updateTriggerCard(card, item) {
-    const refs = card._refs;
-    card.className = "trigger-card " + item.status;
+  function updateTriggerRow(row, item) {
+    const refs = row._refs;
     setText(refs.name, item.name);
+    setText(refs.id, item.id);
+    setText(refs.layer, LAYER_LABELS[item.layer] || item.layer);
     setText(refs.value, item.value_text);
-    setText(refs.unit, item.unit || "");
-    setText(refs.status, item.status_label);
-    refs.status.className = "trigger-status " + item.status;
-    setText(refs.change, item.change_text || "");
+    setText(refs.unit, item.value === null ? "" : item.unit || "");
+    setText(refs.change, item.change_text || "—");
+    setText(refs.date, item.metric_date || "—");
+    setText(refs.statusText, item.status_label);
+    refs.dot.className = "status-dot " + item.status;
+    refs.status.className = "cell-status " + item.status;
   }
 
   function createSignalRow() {
@@ -870,14 +1339,20 @@
 
   function applyTriggers(data) {
     const triggers = data.triggers || [];
-    syncKeyed($("triggerGrid"), triggers, (item) => item.id, createTriggerCard, updateTriggerCard);
-    toggleEmpty($("triggerGrid"), $("triggersEmpty"), triggers.length > 0, "暂无触发器数据");
-    setText($("triggerCount"), "共 " + triggers.length + " 个");
+    state.triggers = triggers;
+    syncKeyed($("triggerBody"), triggers, (item) => item.id, createTriggerRow, updateTriggerRow);
+    toggleEmpty($("triggerWrap"), $("triggersEmpty"), triggers.length > 0, "暂无触发器数据");
+    const noData = (data.stats || {}).no_data ?? 0;
+    setText(
+      $("triggerCount"),
+      "共 " + triggers.length + " 个" + (noData > 0 ? " · " + noData + " 项无数据" : "")
+    );
 
     const stats = data.stats || {};
     setText($("statNormal"), String(stats.normal ?? 0));
     setText($("statWatch"), String(stats.watch ?? 0));
     setText($("statAlert"), String(stats.alert ?? 0));
+    setText($("statNoData"), String(noData));
     setText($("statLatest"), relativeTime(stats.latest_signal_ts));
   }
 
@@ -893,7 +1368,105 @@
     state.judgments = judgments;
     syncKeyed($("judgmentList"), judgments, (item) => item.id, createJudgmentCard, updateJudgmentCard);
     toggleEmpty($("judgmentList"), $("judgmentsEmpty"), judgments.length > 0, "暂无规则触发");
-    setText($("subtitle"), judgments.length ? judgments[0].judgment : "暂无阶段判断");
+  }
+
+  function applyProfile(data) {
+    const stats = data.stats || {};
+    const triggers = data.triggers || [];
+    const total = triggers.length;
+    const covered = total - (stats.no_data || 0);
+    const stage = data.current_stage;
+    setText(
+      $("subtitle"),
+      "数据日期 " + (data.data_date || "—")
+        + " · 指标覆盖 " + covered + "/" + total
+        + (stats.no_data ? " · 无数据 " + stats.no_data + " 项" : "")
+    );
+
+    const box = $("railSummary");
+    box.textContent = "";
+    const rows = [
+      ["当前阶段", stage ? stage.yr + " · " + stage.t : "—"],
+      ["数据日期", data.data_date || "—"],
+      ["指标覆盖", covered + " / " + total],
+      ["规则成立", (data.rules || []).filter((item) => item.current_match).length + " / " + (data.rules || []).length]
+    ];
+    for (const [label, text] of rows) {
+      const row = element("div", "rail-kv");
+      row.append(element("span", null, label), element("strong", null, text));
+      box.appendChild(row);
+    }
+    box.appendChild(element("p", "rail-text", data.wealth_logic || "暂无财富逻辑说明"));
+
+    renderRailWatch(data);
+    renderChainOverview();
+  }
+
+  function renderRailWatch(data) {
+    const box = $("railWatch");
+    box.textContent = "";
+    const triggers = data.triggers || [];
+    const attention = triggers.filter((item) => item.status === "watch" || item.status === "alert");
+    const matched = (data.rules || []).filter((item) => item.current_match);
+    const gaps = data.data_gaps || [];
+
+    if (attention.length) {
+      box.appendChild(element("div", "rail-label", "关注与触发"));
+      const list = element("ul", "rail-list");
+      for (const item of attention) {
+        const row = element("li");
+        row.appendChild(
+          element("span", null, item.name + " " + item.value_text + (item.unit ? item.unit : ""))
+        );
+        row.appendChild(element("span", "rail-status " + item.status, item.status_label));
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+    }
+
+    if (matched.length) {
+      box.appendChild(element("div", "rail-label", "成立规则"));
+      const list = element("ul", "rail-list");
+      for (const rule of matched) {
+        const row = element("li");
+        row.appendChild(element("span", null, rule.res));
+        row.appendChild(element("span", "rail-status alert", "成立"));
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+    }
+
+    if (gaps.length) {
+      box.appendChild(element("div", "rail-label", "数据缺口"));
+      const list = element("ul", "rail-list");
+      for (const gap of gaps) {
+        list.appendChild(element("li", null, gap));
+      }
+      box.appendChild(list);
+    }
+
+    if (!attention.length && !matched.length && !gaps.length) {
+      box.appendChild(element("p", "rail-text", "当前无关注、触发指标，也无成立规则。"));
+    }
+  }
+
+  function renderChainOverview() {
+    const box = $("railChains");
+    box.textContent = "";
+    if (!state.items.length) {
+      box.appendChild(element("p", "rail-text", "暂无产业链配置"));
+      return;
+    }
+    for (const item of state.items) {
+      const button = element("button", "rail-chain");
+      button.type = "button";
+      if (item.name === state.chain) button.classList.add("active");
+      button.appendChild(element("span", null, item.name));
+      const meta = (item.data_date || "无数据") + " · " + item.data_count + "/" + item.trigger_count;
+      button.appendChild(element("span", "rail-chain-meta", meta));
+      button.addEventListener("click", () => loadChain(item.name));
+      box.appendChild(button);
+    }
   }
 
   function applyChokes(data) {
@@ -940,12 +1513,61 @@
     $("reportLink").href = "/report?chain=" + encodeURIComponent(chain);
   }
 
+  function setDataNote(text, kind) {
+    const note = $("dataNote");
+    note.className = "data-note" + (kind ? " " + kind : "");
+    setText(note, text || "");
+  }
+
+  function renderDataPanel() {
+    setText($("dataChain"), "录入渠道指标 · " + (state.chain || "未选择产业链"));
+    const lines = (state.triggers || []).map(
+      (item) => item.id + "  " + item.name + (item.unit ? "（" + item.unit + "）" : "")
+    );
+    setText($("dataIds"), lines.length ? "可用指标（metric_id）：\n" + lines.join("\n") : "触发器加载中");
+  }
+
+  async function importCsv() {
+    const button = $("dataImport");
+    const text = $("dataCsv").value.trim();
+    if (!state.chain) {
+      setDataNote("请先选择产业链", "bad");
+      return;
+    }
+    if (!text) {
+      setDataNote("请粘贴或选择 CSV 文件", "bad");
+      return;
+    }
+    button.disabled = true;
+    setDataNote("正在导入…", "busy");
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/metrics",
+        { csv: text }
+      );
+      const missing = data.missing || [];
+      const head = "已导入 " + data.imported + " 条，覆盖 " + data.metric_ids.length + " 个指标";
+      setDataNote(
+        missing.length ? head + "；仍无数据 " + missing.length + " 个：" + missing.join("、") : head + "；全部指标已有数据",
+        missing.length ? "" : "good"
+      );
+      await loadAll();
+      await refreshChains();
+      renderDataPanel();
+    } catch (err) {
+      setDataNote("导入失败：" + err.message, "bad");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   async function refreshChains() {
     const data = await getJSON("/api/chains");
     state.items = data.items || [];
     state.chains = state.items.map((item) => item.name);
     if (!state.chains.length && data.chains) state.chains = data.chains;
     renderChainList();
+    renderChainOverview();
     return state.items;
   }
 
@@ -987,6 +1609,7 @@
       { key: "signals", error: "signalsError", url: "/api/chain/" + chain + "/signals?limit=" + state.signalsLimit, apply: applySignals },
       { key: "judgments", error: "judgmentsError", url: "/api/chain/" + chain + "/judgments?limit=5", apply: applyJudgments },
       { key: "chokes", error: "chokesError", url: "/api/chain/" + chain + "/chokes", apply: applyChokes },
+      { key: "profile", error: null, url: "/api/chain/" + chain + "/profile", apply: applyProfile },
       { key: "health", error: null, url: "/api/health", apply: applyHealth }
     ];
     const results = await Promise.allSettled(tasks.map((task) => getJSON(task.url)));
@@ -1063,11 +1686,16 @@
       return;
     }
     state.chain = chain;
+    state.triggers = [];
     state.signalsLimit = 10;
     $("chainInput").value = chain;
     updateTitle(chain);
     renderChainList();
-    setText($("subtitle"), "加载中");
+    renderDataPanel();
+    setDataNote("");
+    setText($("subtitle"), "正在加载数据…");
+    setText($("railSummary"), "加载中");
+    setText($("railWatch"), "加载中");
     loadAll();
   }
 
@@ -1084,6 +1712,45 @@
     const form = $("chainForm");
     form.hidden = !form.hidden;
     if (!form.hidden) $("newChainName").focus();
+  });
+
+  $("dataToggle").addEventListener("click", () => {
+    const panel = $("dataPanel");
+    panel.hidden = !panel.hidden;
+    if (panel.hidden) return;
+    renderDataPanel();
+    if (!$("dataCsv").value.trim()) {
+      $("dataCsv").value = "metric_date,metric_id,value\n";
+    }
+    $("dataCsv").focus();
+  });
+
+  $("dataFill").addEventListener("click", () => {
+    $("dataCsv").value = "metric_date,metric_id,value\n";
+    setDataNote("已填入表头，按「日期,指标 id,数值」追加行", "");
+    $("dataCsv").focus();
+  });
+
+  $("dataFile").addEventListener("change", async () => {
+    const file = $("dataFile").files[0];
+    if (!file) return;
+    try {
+      $("dataCsv").value = await file.text();
+      setDataNote("已载入 " + file.name, "");
+    } catch (err) {
+      setDataNote("读取文件失败：" + err.message, "bad");
+    } finally {
+      $("dataFile").value = "";
+    }
+  });
+
+  $("dataImport").addEventListener("click", () => importCsv());
+
+  $("dataCsv").addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      importCsv();
+    }
   });
 
   $("chainGenerate").addEventListener("click", () => generateChainConfig());

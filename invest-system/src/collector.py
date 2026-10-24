@@ -223,12 +223,16 @@ def _fetch_gross_margin(trigger: Trigger, symbol: str) -> pd.DataFrame:
     return _try_sources(sources, trigger, symbol)
 
 
+class UnsupportedMetricError(NotImplementedError):
+    """数据源已接入，但没有该指标的取数逻辑。"""
+
+
 def _fetch_financial(trigger: Trigger, symbol: str) -> pd.DataFrame:
     if trigger.id == "contract_liab":
         return _fetch_contract_liab(trigger, symbol)
     if trigger.id == "gross_margin":
         return _fetch_gross_margin(trigger, symbol)
-    raise NotImplementedError(f"未支持的财报指标: {trigger.id}")
+    raise UnsupportedMetricError(f"未支持的财报指标: {trigger.id}")
 
 
 def _fetch_cpca(trigger: Trigger, symbol: str) -> pd.DataFrame:
@@ -315,6 +319,13 @@ def collect_chain(
                 upsert_metric(conn, symbol, metric_date, trigger.id, value)
             values[trigger.id] = rows[-1][1]
             _log(config.chain_name, trigger.id, "ok")
+        except UnsupportedMetricError as exc:
+            _log(config.chain_name, trigger.id, f"unsupported: {exc}")
+            latest = get_latest_metric(conn, symbol, trigger.id)
+            if latest is not None:
+                values[trigger.id] = latest[0]
+            else:
+                values[f"_missing_{trigger.id}"] = None
         except NotImplementedError as exc:
             _log(config.chain_name, trigger.id, f"unsupported: {exc}")
             raise

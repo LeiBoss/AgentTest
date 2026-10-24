@@ -103,6 +103,23 @@ def test_generate_report_requires_evidence(
         generate_report(config, seeded, "600519")
 
 
+def test_generate_report_drops_unverified_evidence(
+    seeded: sqlite3.Connection, config: ChainConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mixed = dict(NARRATIVE)
+    mixed["evidence"] = [
+        "T05：最新值 1200 元，状态正常",
+        "T01：暂无数据",
+        "T06：最新值 45 天",
+        "行业景气度回升",
+    ]
+    monkeypatch.setattr("src.report.call_llm", lambda system, body: mixed)
+
+    report = generate_report(config, seeded, "600519")
+
+    assert report["evidence"] == mixed["evidence"][:3]
+
+
 def test_report_log_roundtrip(seeded: sqlite3.Connection) -> None:
     payload = {"chain": "白酒", "summary": "示例"}
     insert_report(seeded, "白酒", payload, "2026-10-23T10:00:00")

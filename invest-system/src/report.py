@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 from datetime import datetime
 from typing import Any
@@ -267,6 +268,24 @@ def _narrative_input(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_PUNCT_RE = re.compile(r"[\s，。、；：！？,.;:!?（）()【】\[\]“”\"'《》<>—\-/\\]+")
+
+
+def _norm_text(text: str) -> str:
+    return _PUNCT_RE.sub("", text).lower()
+
+
+def _cites_trigger(item: str, ids: list[str], names: list[str]) -> bool:
+    """evidence 只要包含某个 trigger id 或指标名称（忽略标点与大小写）即视为可验证。"""
+    lower = item.lower()
+    for trigger_id in ids:
+        pattern = rf"(?<![a-z0-9_]){re.escape(trigger_id.lower())}(?![a-z0-9_])"
+        if re.search(pattern, lower):
+            return True
+    normalized = _norm_text(item)
+    return any(name in normalized for name in names)
+
+
 def _validate_narrative(result: Any, config: ChainConfig) -> dict[str, Any]:
     if not isinstance(result, dict):
         raise ReportError("LLM 返回的不是 JSON 对象")
@@ -282,11 +301,19 @@ def _validate_narrative(result: Any, config: ChainConfig) -> dict[str, Any]:
     evidence = result.get("evidence")
     if not isinstance(evidence, list) or len(evidence) < 3:
         raise ReportError("LLM 输出 evidence 至少需要 3 条")
-    refs = {trigger.id for trigger in config.triggers} | {trigger.name for trigger in config.triggers}
-    for item in evidence:
-        if not isinstance(item, str) or not any(ref in item for ref in refs):
-            raise ReportError("LLM 输出 evidence 必须引用真实存在的 trigger id 或指标名称")
-    return result
+    ids = [trigger.id for trigger in config.triggers]
+    names = [_norm_text(trigger.name) for trigger in config.triggers]
+    valid = [
+        item
+        for item in evidence
+        if isinstance(item, str) and item.strip() and _cites_trigger(item, ids, names)
+    ]
+    if len(valid) < 3:
+        raise ReportError(
+            "LLM 输出 evidence 未引用真实指标，每条须以 trigger id 开头。可用 id："
+            + "、".join(ids)
+        )
+    return {**result, "evidence": valid}
 
 
 def _narrative_text(result: dict[str, Any]) -> str:

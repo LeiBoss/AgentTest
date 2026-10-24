@@ -34,8 +34,9 @@ from src.db import (
     insert_report,
     now_iso,
 )
+from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
-from src.report import ReportError, generate_report
+from src.report import ReportError, build_report_data, generate_report
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,17 @@ STATIC_DIR = BASE_DIR / "static"
 DB_PATH = Path(os.getenv("INVEST_DB", str(BASE_DIR / "invest.db")))
 SYMBOL = os.getenv("SYMBOL", "600519")
 
-STATUS_LABELS = {"normal": "正常", "watch": "关注", "alert": "触发"}
-CHOKE_TYPE_LABELS = {"ecosystem": "生态位", "resource": "资源", "crowded": "拥挤"}
+STATUS_LABELS = {"normal": "正常", "watch": "关注", "alert": "触发", "no_data": "无数据"}
+CHOKE_TYPE_LABELS = {
+    "technology": "技术",
+    "resource": "资源",
+    "capacity": "产能",
+    "channel": "渠道",
+    "regulation": "监管",
+    "brand": "品牌",
+    "ecosystem": "生态位",
+    "crowded": "拥挤",
+}
 CHOKE_STATE_LABELS = {
     "tight": "收紧",
     "balanced": "平衡",
@@ -136,13 +146,16 @@ def _latest_signal_ts(conn: sqlite3.Connection, chain: str) -> str | None:
 
 def _trigger_payload(conn: sqlite3.Connection, config: ChainConfig) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
-    counts = {"normal": 0, "watch": 0, "alert": 0}
+    counts = {"normal": 0, "watch": 0, "alert": 0, "no_data": 0}
     for trigger in config.triggers:
         history = get_metric_history(conn, SYMBOL, trigger.id, limit=2)
         value = history[0][0] if history else None
-        status = _status(conn, config.chain_name, trigger.id)
-        if status not in counts:
-            status = "normal"
+        if value is None:
+            status = "no_data"
+        else:
+            status = _status(conn, config.chain_name, trigger.id)
+            if status not in ("normal", "watch", "alert"):
+                status = "normal"
         counts[status] += 1
         items.append(
             {
@@ -399,11 +412,44 @@ def create_report(name: str) -> dict[str, Any]:
     return {"report": payload}
 
 
+@app.get("/api/chain/{name}/profile")
+def chain_profile(name: str) -> dict[str, Any]:
+    """返回当前链的静态说明与动态状态，供仪表盘侧栏使用。"""
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        return build_report_data(config, conn, SYMBOL)
+
+
 @app.get("/api/chain/{name}/triggers")
 def chain_triggers(name: str) -> dict[str, Any]:
     config = _load_chain(name)
     with closing(_connect()) as conn:
         return _trigger_payload(conn, config)
+
+
+@app.post("/api/chain/{name}/metrics")
+def import_chain_metrics(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """导入前端粘贴或上传的渠道指标 CSV。"""
+    config = _load_chain(name)
+    text = str((payload or {}).get("csv", ""))
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="CSV 内容为空")
+    with closing(_connect()) as conn:
+        try:
+            report = import_metrics_text(conn, config, SYMBOL, text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logger.info(
+        "[app] 导入指标 %s: %s 条，仍无数据 %s",
+        config.chain_name,
+        report.imported,
+        len(report.missing),
+    )
+    return {
+        "imported": report.imported,
+        "metric_ids": report.metric_ids,
+        "missing": report.missing,
+    }
 
 
 @app.get("/api/chain/{name}/signals")

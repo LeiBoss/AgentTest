@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from src.db import get_latest_metric, init_db
-from src.metrics_import import import_metrics
+from src.metrics_import import import_metrics, import_metrics_text
 from src.models import ChainConfig
 
 HEADER = "metric_date,metric_id,value\n"
@@ -37,6 +37,23 @@ def _write_csv(tmp_path: Path, body: str) -> Path:
 def _count(conn: sqlite3.Connection) -> int:
     row = conn.execute("SELECT COUNT(*) AS n FROM daily_metric").fetchone()
     return int(row["n"])
+
+
+def test_import_text_writes_metrics(conn: sqlite3.Connection, config: ChainConfig) -> None:
+    report = import_metrics_text(conn, config, "600519", HEADER + "2026-10-20,T05,1200\n")
+
+    assert report.imported == 1
+    assert report.metric_ids == ["T05"]
+    latest = get_latest_metric(conn, "600519", "T05")
+    assert latest is not None
+    assert latest[0] == 1200.0
+
+
+def test_import_text_rejects_empty_body(
+    conn: sqlite3.Connection, config: ChainConfig
+) -> None:
+    with pytest.raises(ValueError, match="没有有效数据行"):
+        import_metrics_text(conn, config, "600519", HEADER)
 
 
 def test_import_writes_metrics(
