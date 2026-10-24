@@ -18,6 +18,7 @@ from .llm import LLMError, call_llm
 from .models import ChainConfig
 from .prompts import P6_SYSTEM
 from .rules import evaluate_rule
+from .scenario import DEFAULT_SHOCK_PCT, run_scenario
 from .valuation import valuation_context, valuation_snapshot
 
 logger = logging.getLogger(__name__)
@@ -216,6 +217,7 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         "skeleton": [node.model_dump() for node in config.skeleton],
         "profit_pool": [item.model_dump() for item in config.profit_pool],
         "transmission": config.transmission.model_dump(),
+        "scenario": run_scenario(config, config.transmission.chain[0], DEFAULT_SHOCK_PCT),
         "stages": [stage.model_dump() for stage in config.stages],
         "triggers": triggers,
         "signals": _signal_rows(conn, config),

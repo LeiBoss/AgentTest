@@ -109,6 +109,25 @@
 
   .block:first-of-type { border-top: 0; padding-top: 0; }
 
+  .block[hidden] { display: none; }
+
+  .dir {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .dir.up { color: var(--alert); background: rgba(166, 58, 46, .10); }
+  .dir.down { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .dir.flat,
+  .dir.none { color: var(--muted); background: #f2f3f5; }
+
+  .scenario-basis { font-size: 12px; color: var(--muted); }
+
+  .scenario-basis strong { font-weight: 500; color: var(--text); }
+
   h2 {
     margin: 0 0 14px;
     font-size: 18px;
@@ -483,6 +502,26 @@
       <p id="transmissionReading"></p>
     </section>
 
+    <section class="block" id="scenarioBlock" hidden>
+      <h2>情景推演<span class="hint">沿传导链的条件推演</span></h2>
+      <p id="scenarioHeadline"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>环节</th>
+              <th>方向</th>
+              <th>幅度区间</th>
+              <th>累计滞后</th>
+              <th>传导依据</th>
+            </tr>
+          </thead>
+          <tbody id="scenarioBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="scenarioNote"></p>
+    </section>
+
     <section class="block">
       <h2>产业链结构</h2>
       <ul class="row-list" id="skeletonList"></ul>
@@ -782,6 +821,64 @@
       "chainIndexNote",
       "等权链指数 · " + date + " · 覆盖 " + (index.price_coverage || "0/0")
         + "；离散度为区间收益标准差，越高说明链内分化越大。"
+    );
+  }
+
+  function scenarioRange(item) {
+    if (item.impact_pct === null || item.impact_pct === undefined) return "—";
+    if (item.impact_low === item.impact_high) return fmtPct(item.impact_pct);
+    return fmtPct(item.impact_pct) + "（" + fmtPct(item.impact_low) + " ~ " + fmtPct(item.impact_high) + "）";
+  }
+
+  function scenarioBasis(item) {
+    const edge = item.edge;
+    if (!edge) {
+      return document.createTextNode(
+        item.direction === "none" ? "位于冲击点上游，不推演" : "冲击起点"
+      );
+    }
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el("strong", "", edge.src + " → " + edge.dst));
+    const range = edge.elasticity_low === edge.elasticity_high
+      ? String(edge.elasticity)
+      : edge.elasticity_low + "~" + edge.elasticity_high;
+    frag.appendChild(document.createTextNode(
+      " · " + edge.sign_label + " · 弹性 " + edge.elasticity + "（" + range + "） · " + edge.days + " 天"
+        + (edge.assumed ? " · 默认参数" : "")
+    ));
+    return frag;
+  }
+
+  function renderScenario(report) {
+    const block = $("scenarioBlock");
+    const data = report.scenario;
+    if (!data) {
+      block.hidden = true;
+      return;
+    }
+    block.hidden = false;
+    const body = $("scenarioBody");
+    body.textContent = "";
+    for (const item of data.nodes || []) {
+      const row = document.createElement("tr");
+      const dirCell = document.createElement("td");
+      dirCell.appendChild(el("span", "dir " + item.direction, item.direction_label));
+      const basis = el("td", "scenario-basis");
+      basis.appendChild(scenarioBasis(item));
+      row.append(
+        el("td", "", item.node),
+        dirCell,
+        el("td", "num", scenarioRange(item)),
+        el("td", "num", item.cumulative_days === null ? "—" : item.cumulative_days + " 天"),
+        basis
+      );
+      body.appendChild(row);
+    }
+    setText("scenarioHeadline", data.headline || "");
+    const warnings = data.warnings || [];
+    setText(
+      "scenarioNote",
+      (warnings.length ? "默认参数：" + warnings.join("；") + "。" : "") + (data.disclaimer || "")
     );
   }
 
@@ -1095,6 +1192,7 @@
     });
     setText("transmissionNote", transmission.note || "");
     setText("transmissionReading", report.transmission_reading);
+    renderScenario(report);
     renderSkeleton(report);
 
     renderStats(report);

@@ -809,6 +809,74 @@
 
   .study-table { min-width: 700px; }
 
+  .scenario-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .scenario-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .scenario-select,
+  .scenario-input {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+
+  .scenario-select:focus,
+  .scenario-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(20, 54, 79, .10);
+  }
+
+  .scenario-input {
+    width: 78px;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .scenario-note {
+    flex: 1 1 220px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .scenario-note.bad { color: var(--alert); }
+
+  .scenario-table { min-width: 720px; }
+
+  .dir-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .dir-tag.up { color: var(--alert); background: rgba(166, 58, 46, .10); }
+  .dir-tag.down { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .dir-tag.flat,
+  .dir-tag.none { color: var(--muted); background: #f2f3f5; }
+
+  .scenario-basis { font-size: 12px; color: var(--muted); }
+
+  .scenario-basis strong { font-weight: 500; color: var(--text); }
+
   .cell-code { font-family: var(--mono); color: var(--muted); }
 
   .choke-table { min-width: 620px; }
@@ -1295,6 +1363,36 @@
 
       <section class="section">
         <div class="section-head">
+          <h2>情景推演</h2>
+          <span class="section-meta" id="scenarioMeta">沿传导链推演，仅作条件假设</span>
+        </div>
+        <div class="scenario-form">
+          <label>冲击环节
+            <select class="scenario-select" id="scenarioNode" aria-label="冲击环节"></select>
+          </label>
+          <label>冲击幅度
+            <input class="scenario-input" id="scenarioShock" type="number" step="1" min="-100" max="100" value="-10">
+            <span>%</span>
+          </label>
+          <button class="chain-load" id="scenarioRun" type="button">推演</button>
+          <span class="scenario-note" id="scenarioNote"></span>
+        </div>
+        <div class="table-wrap" id="scenarioWrap">
+          <table class="data-table scenario-table">
+            <thead>
+              <tr>
+                <th>环节</th><th>方向</th><th>幅度区间</th><th>累计滞后</th><th>传导依据</th>
+              </tr>
+            </thead>
+            <tbody id="scenarioBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="scenarioEmpty" hidden>暂无推演结果</div>
+        <p class="footnote" id="scenarioFootnote">幅度按配置中的传导方向与弹性区间逐段相乘，属于条件推演，不构成投资建议。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
           <h2>最近信号</h2>
           <button class="text-btn" id="signalsMore" type="button">查看全部</button>
         </div>
@@ -1457,7 +1555,8 @@
     items: [],
     triggers: [],
     signalsLimit: 10,
-    judgments: []
+    judgments: [],
+    scenarioCustom: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -2042,6 +2141,107 @@
     toggleEmpty($("signalStudyWrap"), $("signalStudyEmpty"), rows.length > 0, "暂无可回测的状态迁移");
   }
 
+  function scenarioRange(item) {
+    if (item.impact_pct === null || item.impact_pct === undefined) return "—";
+    if (item.impact_low === item.impact_high) return fmtPct(item.impact_pct);
+    return fmtPct(item.impact_pct) + "（" + fmtPct(item.impact_low) + " ~ " + fmtPct(item.impact_high) + "）";
+  }
+
+  function scenarioBasis(item) {
+    const edge = item.edge;
+    if (!edge) {
+      return document.createTextNode(
+        item.direction === "none" ? "位于冲击点上游，不推演" : "冲击起点"
+      );
+    }
+    const frag = document.createDocumentFragment();
+    frag.appendChild(element("strong", null, edge.src + " → " + edge.dst));
+    const range = edge.elasticity_low === edge.elasticity_high
+      ? String(edge.elasticity)
+      : edge.elasticity_low + "~" + edge.elasticity_high;
+    frag.appendChild(document.createTextNode(
+      " · " + edge.sign_label + " · 弹性 " + edge.elasticity + "（" + range + "） · " + edge.days + " 天"
+        + (edge.assumed ? " · 默认参数" : "")
+    ));
+    return frag;
+  }
+
+  function renderScenario(scenario, chain) {
+    const data = scenario || {};
+    const names = (data.chain && data.chain.length ? data.chain : chain) || [];
+    const select = $("scenarioNode");
+    const key = names.join("|");
+    if (select.dataset.names !== key) {
+      select.textContent = "";
+      for (const name of names) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      }
+      select.dataset.names = key;
+    }
+    if (data.node && names.includes(data.node)) select.value = data.node;
+    if (typeof data.shock_pct === "number") $("scenarioShock").value = data.shock_pct;
+
+    const body = $("scenarioBody");
+    body.textContent = "";
+    for (const item of data.nodes || []) {
+      const row = document.createElement("tr");
+      const nameCell = element("td", "cell-name", item.node);
+      const dirCell = document.createElement("td");
+      dirCell.appendChild(element("span", "dir-tag " + item.direction, item.direction_label));
+      const impact = element("td", "cell-num", scenarioRange(item));
+      const days = element("td", "cell-num", item.cumulative_days === null ? "—" : item.cumulative_days + " 天");
+      const basis = element("td", "scenario-basis");
+      basis.appendChild(scenarioBasis(item));
+      row.append(nameCell, dirCell, impact, days, basis);
+      body.appendChild(row);
+    }
+
+    const warnings = data.warnings || [];
+    setText(
+      $("scenarioNote"),
+      warnings.length ? "默认参数：" + warnings.join("；") : (data.headline || "")
+    );
+    setText(
+      $("scenarioMeta"),
+      data.node
+        ? data.node + " " + fmtPct(data.shock_pct) + " · 沿传导链推演"
+        : "沿传导链推演，仅作条件假设"
+    );
+    toggleEmpty($("scenarioWrap"), $("scenarioEmpty"), (data.nodes || []).length > 0, "暂无推演结果");
+  }
+
+  async function runScenario() {
+    if (!state.chain) return;
+    const node = $("scenarioNode").value;
+    const shock = Number($("scenarioShock").value);
+    if (!node) {
+      setText($("scenarioNote"), "请选择冲击环节");
+      return;
+    }
+    if (!Number.isFinite(shock) || shock < -100 || shock > 100) {
+      setText($("scenarioNote"), "冲击幅度需在 -100% 到 100% 之间");
+      return;
+    }
+    const button = $("scenarioRun");
+    button.disabled = true;
+    setText($("scenarioNote"), "推演中…");
+    try {
+      const data = await getJSON(
+        "/api/chain/" + encodeURIComponent(state.chain)
+          + "/scenario?node=" + encodeURIComponent(node) + "&shock=" + shock
+      );
+      state.scenarioCustom = true;
+      renderScenario(data, null);
+    } catch (err) {
+      setText($("scenarioNote"), "推演失败：" + err.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function applySignals(data) {
     const signals = data.signals || [];
     syncKeyed($("signalList"), signals, (item) => item.id, createSignalRow, updateSignalRow);
@@ -2088,6 +2288,7 @@
     renderChainOverview();
 
     renderTransmission(data.transmission);
+    if (!state.scenarioCustom) renderScenario(data.scenario, (data.transmission || {}).chain);
     renderChainIndex(data.chain_index);
     renderSignalStudy(data.signal_study);
     const valuationContext = data.valuation_context || {};
@@ -2393,6 +2594,7 @@
     state.chain = chain;
     state.triggers = [];
     state.signalsLimit = 10;
+    state.scenarioCustom = false;
     $("chainInput").value = chain;
     updateTitle(chain);
     renderChainList();
@@ -2405,6 +2607,15 @@
   }
 
   $("chainLoad").addEventListener("click", () => loadChain($("chainInput").value));
+
+  $("scenarioRun").addEventListener("click", () => runScenario());
+
+  $("scenarioShock").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      runScenario();
+    }
+  });
 
   $("chainInput").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

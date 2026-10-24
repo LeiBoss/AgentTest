@@ -37,6 +37,7 @@ from src.db import (
 from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
 from src.report import ReportError, build_report_data, generate_report
+from src.scenario import DEFAULT_SHOCK_PCT, ScenarioError, run_scenario
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +424,17 @@ def chain_profile(name: str) -> dict[str, Any]:
     config = _load_chain(name)
     with closing(_connect()) as conn:
         return build_report_data(config, conn, SYMBOL)
+
+
+@app.get("/api/chain/{name}/scenario")
+def chain_scenario(name: str, node: str = "", shock: float = DEFAULT_SHOCK_PCT) -> dict[str, Any]:
+    """按指定冲击节点与幅度沿传导链推演。"""
+    config = _load_chain(name)
+    target = node or config.transmission.chain[0]
+    try:
+        return run_scenario(config, target, shock)
+    except ScenarioError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/chain/{name}/triggers")

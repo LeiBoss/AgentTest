@@ -160,7 +160,20 @@ class TransmissionLag(BaseModel):
     src: str = Field(min_length=1)
     dst: str = Field(min_length=1)
     days: int = Field(ge=0)
+    sign: Literal["same", "inverse"] = "same"
+    elasticity: float = Field(default=1.0, gt=0, le=5)
+    elasticity_range: tuple[float, float] | None = None
     note: str = ""
+
+    @model_validator(mode="after")
+    def _check_elasticity(self) -> "TransmissionLag":
+        if self.elasticity_range is not None:
+            low, high = self.elasticity_range
+            if not 0 < low <= high:
+                raise ValueError(
+                    f"elasticity_range 需满足 0 < 下界 <= 上界，当前为 {self.elasticity_range}"
+                )
+        return self
 
 
 class Transmission(BaseModel):
