@@ -21,6 +21,7 @@ from src.rules import run_rules
 logger = logging.getLogger(__name__)
 
 DISCLAIMER_TAIL = "信息整理，不构成投资建议。"
+VALUATION_ONLY_FLAG = "--valuation-only"
 
 
 class ConfigError(RuntimeError):
@@ -83,8 +84,31 @@ def run_chain(chain_yaml_path: str, symbol: str) -> dict:
     }
 
 
+def backfill_valuation(symbol: str) -> int:
+    """仅回补估值数据，不触发判定、LLM 解读与推送。"""
+    conn = init_db()
+    try:
+        return collect_valuation(conn, symbol)
+    finally:
+        conn.close()
+
+
 def main() -> None:
     """读取参数并执行，失败以非 0 退出码结束。"""
+    argv = sys.argv[1:]
+    if VALUATION_ONLY_FLAG in argv:
+        args = [arg for arg in argv if arg != VALUATION_ONLY_FLAG]
+        symbol = args[0] if args else os.getenv("SYMBOL", "")
+        if not symbol:
+            logger.error("[main] 缺少参数：symbol")
+            sys.exit(1)
+        try:
+            logger.info("[main] valuation rows=%s", backfill_valuation(symbol))
+        except Exception as exc:  # noqa: BLE001 - 顶层边界，统一转为退出码
+            logger.error("[main] valuation failed: %s", exc)
+            sys.exit(1)
+        return
+
     chain_yaml_path, symbol = _read_args()
     if not chain_yaml_path or not symbol:
         logger.error("[main] 缺少参数：chain_yaml_path 与 symbol")

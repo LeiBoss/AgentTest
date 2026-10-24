@@ -6,6 +6,10 @@ if [ -z "${CHAIN_YAML:-}" ] || [ -z "${SYMBOL:-}" ]; then
     exit 1
 fi
 
+# 容器启动时先回补估值数据，避免等待当天 07:30 定时任务
+echo "[worker] $(date '+%F %T') 启动估值回补"
+python main.py --valuation-only "$SYMBOL" || true
+
 while true; do
     now=$(date +%s)
     target=$(date -d "today 07:30" +%s)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import sqlite3
+import sys
 from typing import Any
 
 import pytest
@@ -125,3 +126,62 @@ def test_run_chain_without_any_data_raises(
 
     with pytest.raises(CollectError, match="无任何可用数据"):
         run_chain(_write_chain(tmp_path, _payload(valid_payload)), "600519.SH")
+
+
+def test_backfill_valuation_closes_connection(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn = init_db(str(tmp_path / "inv.db"))
+    seen: list[str] = []
+    monkeypatch.setattr(main_module, "init_db", lambda: conn)
+    monkeypatch.setattr(
+        main_module,
+        "collect_valuation",
+        lambda connection, symbol: seen.append(symbol) or 12,
+    )
+
+    assert main_module.backfill_valuation("600519") == 12
+    assert seen == ["600519"]
+    with pytest.raises(sqlite3.ProgrammingError):
+        conn.execute("SELECT 1")
+
+
+def test_main_valuation_only_uses_cli_symbol(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["main.py", "--valuation-only", "600519"])
+    seen: list[str] = []
+    monkeypatch.setattr(
+        main_module, "backfill_valuation", lambda symbol: seen.append(symbol) or 7
+    )
+
+    main_module.main()
+
+    assert seen == ["600519"]
+
+
+def test_main_valuation_only_falls_back_to_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["main.py", "--valuation-only"])
+    monkeypatch.setenv("SYMBOL", "000858")
+    seen: list[str] = []
+    monkeypatch.setattr(
+        main_module, "backfill_valuation", lambda symbol: seen.append(symbol) or 7
+    )
+
+    main_module.main()
+
+    assert seen == ["000858"]
+
+
+def test_main_valuation_only_requires_symbol(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["main.py", "--valuation-only"])
+    monkeypatch.delenv("SYMBOL", raising=False)
+
+    with pytest.raises(SystemExit) as excinfo:
+        main_module.main()
+
+    assert excinfo.value.code == 1
