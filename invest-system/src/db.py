@@ -70,6 +70,33 @@ CREATE TABLE IF NOT EXISTS company_fin (
     asset_turn         REAL,
     PRIMARY KEY (symbol, stat_date)
 );
+
+CREATE TABLE IF NOT EXISTS thesis_log (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    chain                TEXT NOT NULL,
+    title                TEXT NOT NULL,
+    direction            TEXT NOT NULL,
+    horizon              TEXT NOT NULL DEFAULT '',
+    core_logic           TEXT NOT NULL DEFAULT '',
+    confirm_condition    TEXT NOT NULL DEFAULT '',
+    invalidate_condition TEXT NOT NULL DEFAULT '',
+    confidence           INTEGER NOT NULL,
+    status               TEXT NOT NULL,
+    created_at           TEXT NOT NULL,
+    updated_at           TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS catalyst_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    chain       TEXT NOT NULL,
+    event_date  TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    kind        TEXT NOT NULL DEFAULT '',
+    related     TEXT NOT NULL DEFAULT '',
+    expectation TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
 """
 
 COMPANY_FIN_FIELDS = (
@@ -302,3 +329,117 @@ def get_latest_report(conn: sqlite3.Connection, chain: str) -> dict | None:
         return None
     payload["generated_at"] = row["ts"]
     return payload
+
+
+def _thesis_row(conn: sqlite3.Connection, thesis_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM thesis_log WHERE id = ?", (thesis_id,)).fetchone()
+    return dict(row) if row is not None else None
+
+
+def insert_thesis(conn: sqlite3.Connection, chain: str, data: dict, ts: str | None = None) -> dict:
+    """新增一条 Thesis，初始状态 active。"""
+    now = ts or now_iso()
+    cursor = conn.execute(
+        "INSERT INTO thesis_log"
+        " (chain, title, direction, horizon, core_logic, confirm_condition,"
+        " invalidate_condition, confidence, status, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            chain,
+            data["title"],
+            data["direction"],
+            data.get("horizon", ""),
+            data.get("core_logic", ""),
+            data.get("confirm_condition", ""),
+            data.get("invalidate_condition", ""),
+            data["confidence"],
+            "active",
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+    row = _thesis_row(conn, int(cursor.lastrowid))
+    assert row is not None
+    return row
+
+
+def get_theses(conn: sqlite3.Connection, chain: str) -> list[dict]:
+    """跟踪中的 Thesis 在前，其余按更新时间倒序。"""
+    rows = conn.execute(
+        "SELECT * FROM thesis_log WHERE chain = ?"
+        " ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, id DESC",
+        (chain,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_thesis_status(
+    conn: sqlite3.Connection, chain: str, thesis_id: int, status: str, ts: str | None = None
+) -> dict | None:
+    """更新 Thesis 状态，返回更新后的记录；不存在返回 None。"""
+    now = ts or now_iso()
+    cursor = conn.execute(
+        "UPDATE thesis_log SET status = ?, updated_at = ? WHERE id = ? AND chain = ?",
+        (status, now, thesis_id, chain),
+    )
+    conn.commit()
+    if cursor.rowcount == 0:
+        return None
+    return _thesis_row(conn, thesis_id)
+
+
+def _catalyst_row(conn: sqlite3.Connection, catalyst_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM catalyst_log WHERE id = ?", (catalyst_id,)
+    ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def insert_catalyst(
+    conn: sqlite3.Connection, chain: str, data: dict, ts: str | None = None
+) -> dict:
+    """新增一条催化剂，初始状态 pending。"""
+    now = ts or now_iso()
+    cursor = conn.execute(
+        "INSERT INTO catalyst_log"
+        " (chain, event_date, title, kind, related, expectation, status, created_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            chain,
+            data["event_date"],
+            data["title"],
+            data.get("kind", ""),
+            data.get("related", ""),
+            data.get("expectation", ""),
+            "pending",
+            now,
+        ),
+    )
+    conn.commit()
+    row = _catalyst_row(conn, int(cursor.lastrowid))
+    assert row is not None
+    return row
+
+
+def get_catalysts(conn: sqlite3.Connection, chain: str, limit: int = 100) -> list[dict]:
+    """按事件日期升序返回催化剂。"""
+    rows = conn.execute(
+        "SELECT * FROM catalyst_log WHERE chain = ? ORDER BY event_date ASC, id ASC LIMIT ?",
+        (chain, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_catalyst_status(
+    conn: sqlite3.Connection, chain: str, catalyst_id: int, status: str
+) -> dict | None:
+    """更新催化剂状态，返回更新后的记录；不存在返回 None。"""
+    cursor = conn.execute(
+        "UPDATE catalyst_log SET status = ? WHERE id = ? AND chain = ?",
+        (status, catalyst_id, chain),
+    )
+    conn.commit()
+    if cursor.rowcount == 0:
+        return None
+    return _catalyst_row(conn, catalyst_id)

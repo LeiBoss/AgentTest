@@ -128,6 +128,76 @@
 
   .scenario-basis strong { font-weight: 500; color: var(--text); }
 
+  .thesis-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .thesis-item:last-child { border-bottom: 0; }
+
+  .thesis-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .thesis-title { font-size: 15px; font-weight: 600; }
+
+  .thesis-conf {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .thesis-status {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .thesis-status.active { color: var(--watch); background: rgba(154, 100, 15, .10); }
+  .thesis-status.confirmed { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .thesis-status.invalidated { color: var(--muted); background: #f2f3f5; }
+
+  .thesis-logic {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  .thesis-conds {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 20px;
+  }
+
+  .thesis-cond { margin: 0; font-size: 12.5px; line-height: 1.7; }
+
+  .thesis-cond strong { color: var(--muted); font-weight: 500; }
+
+  .thesis-meta { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+  .cat-timing { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .cat-timing.soon { color: var(--watch); }
+  .cat-timing.today,
+  .cat-timing.overdue { color: var(--alert); }
+
+  .cat-status {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .cat-status.pending { color: var(--watch); background: rgba(154, 100, 15, .10); }
+  .cat-status.done { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .cat-status.missed { color: var(--muted); background: #f2f3f5; }
+
   h2 {
     margin: 0 0 14px;
     font-size: 18px;
@@ -418,6 +488,7 @@
     #valuationWrap th,
     #valuationWrap td { padding-left: 6px; padding-right: 6px; }
     .rule-cond .tag { display: block; margin: 4px 0 0; }
+    .thesis-conds { grid-template-columns: 1fr; }
     .top { align-items: flex-start; }
   }
 
@@ -520,6 +591,30 @@
         </table>
       </div>
       <p class="note" id="scenarioNote"></p>
+    </section>
+
+    <section class="block" id="thesisBlock" hidden>
+      <h2>Thesis 与催化剂<span class="hint">可证伪判断与观察日程</span></h2>
+      <div id="thesisList"></div>
+      <p class="note" id="thesisEmpty" hidden>暂无 Thesis 记录</p>
+      <h3>催化剂日历</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>剩余</th>
+              <th>事件</th>
+              <th>类型</th>
+              <th>关联</th>
+              <th>届时看什么</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="catalystBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="catalystEmpty" hidden>暂无催化剂记录</p>
     </section>
 
     <section class="block">
@@ -882,6 +977,64 @@
     );
   }
 
+  function thesisCard(item) {
+    const card = el("div", "thesis-item");
+    const head = el("div", "thesis-head");
+    head.append(
+      el("span", "thesis-title", item.title),
+      el("span", "dir " + item.direction, item.direction_label),
+      el("span", "thesis-conf", "置信度 " + item.confidence + "%"),
+      el("span", "thesis-status " + item.status, item.status_label)
+    );
+    card.appendChild(head);
+    if (item.core_logic) card.appendChild(el("p", "thesis-logic", item.core_logic));
+
+    const conds = el("div", "thesis-conds");
+    const confirm = el("p", "thesis-cond");
+    confirm.append(el("strong", "", "确认条件："), document.createTextNode(item.confirm_condition || "—"));
+    const invalidate = el("p", "thesis-cond");
+    invalidate.append(el("strong", "", "证伪条件："), document.createTextNode(item.invalidate_condition || "—"));
+    conds.append(confirm, invalidate);
+    card.appendChild(conds);
+
+    const parts = [];
+    if (item.horizon) parts.push("窗口 " + item.horizon);
+    if (item.age_days !== null && item.age_days !== undefined) parts.push("已记录 " + item.age_days + " 天");
+    if (parts.length) card.appendChild(el("p", "thesis-meta", parts.join(" · ")));
+    return card;
+  }
+
+  function renderThesis(report) {
+    const data = report.thesis || {};
+    const theses = data.theses || [];
+    const catalysts = data.catalysts || [];
+    $("thesisBlock").hidden = theses.length === 0 && catalysts.length === 0;
+
+    const list = $("thesisList");
+    list.textContent = "";
+    for (const item of theses) list.appendChild(thesisCard(item));
+    $("thesisEmpty").hidden = theses.length > 0;
+
+    const body = $("catalystBody");
+    body.textContent = "";
+    for (const item of catalysts) {
+      const row = document.createElement("tr");
+      const statusCell = document.createElement("td");
+      statusCell.appendChild(el("span", "cat-status " + item.status, item.status_label));
+      row.append(
+        el("td", "num", item.event_date),
+        el("td", "cat-timing " + item.phase, item.timing_label),
+        el("td", "", item.title),
+        el("td", "", item.kind_label),
+        el("td", "", item.related || "—"),
+        el("td", "", item.expectation || "—"),
+        statusCell
+      );
+      body.appendChild(row);
+    }
+    $("catalystEmpty").hidden = catalysts.length > 0;
+  }
+
   function renderTriggers(report) {
     const body = $("triggerBody");
     body.textContent = "";
@@ -1193,6 +1346,7 @@
     setText("transmissionNote", transmission.note || "");
     setText("transmissionReading", report.transmission_reading);
     renderScenario(report);
+    renderThesis(report);
     renderSkeleton(report);
 
     renderStats(report);

@@ -60,6 +60,8 @@ def test_build_report_data(seeded: sqlite3.Connection, config: ChainConfig) -> N
     assert [item["value_text"] for item in data["triggers"] if item["id"] == "T05"] == ["1200"]
     assert len(data["triggers"]) == 8
     assert data["current_stage"]["t"] == "去库存"
+    assert data["thesis"]["theses"] == []
+    assert data["thesis"]["catalysts"] == []
 
 
 def test_generate_report_ok(

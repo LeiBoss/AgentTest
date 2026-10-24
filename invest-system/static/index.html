@@ -877,6 +877,185 @@
 
   .scenario-basis strong { font-weight: 500; color: var(--text); }
 
+  .thesis-form,
+  .catalyst-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px;
+    background: var(--soft);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+  }
+
+  .thesis-form[hidden],
+  .catalyst-form[hidden] { display: none; }
+
+  .thesis-form label,
+  .catalyst-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .scenario-input.wide { width: 220px; }
+
+  .thesis-input {
+    flex: 1 1 100%;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+
+  .thesis-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(20, 54, 79, .10);
+  }
+
+  .thesis-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 100%;
+  }
+
+  .thesis-card {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .thesis-card:last-child { border-bottom: 0; }
+
+  .thesis-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .thesis-title { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  .thesis-conf {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .thesis-status {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .thesis-status.active { color: var(--watch); background: rgba(154, 100, 15, .10); }
+  .thesis-status.confirmed { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .thesis-status.invalidated { color: var(--muted); background: #f2f3f5; }
+
+  .thesis-logic {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  .thesis-logic:empty { display: none; }
+
+  .thesis-conds {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 20px;
+  }
+
+  .thesis-cond {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .thesis-cond::before {
+    display: block;
+    margin-bottom: 1px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .thesis-cond.confirm::before { content: "确认条件"; }
+  .thesis-cond.invalidate::before { content: "证伪条件"; }
+
+  .thesis-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .thesis-meta { font-size: 12px; color: var(--muted); }
+
+  .mini-action {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--card);
+    padding: 3px 9px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--primary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .mini-action:hover { border-color: var(--primary); }
+
+  .thesis-actions-row {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .catalyst-table { min-width: 820px; }
+
+  .cat-timing {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .cat-timing.soon { color: var(--watch); }
+  .cat-timing.today { color: var(--alert); font-weight: 500; }
+  .cat-timing.overdue { color: var(--alert); }
+
+  .cat-status {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .cat-status.pending { color: var(--watch); background: rgba(154, 100, 15, .10); }
+  .cat-status.done { color: var(--normal); background: rgba(15, 122, 77, .10); }
+  .cat-status.missed { color: var(--muted); background: #f2f3f5; }
+
+  .cat-actions { display: inline-flex; gap: 6px; }
+
+  .cat-expect { font-size: 12px; color: var(--muted); }
+
   .cell-code { font-family: var(--mono); color: var(--muted); }
 
   .choke-table { min-width: 620px; }
@@ -1205,6 +1384,12 @@
     .choke-table td { height: 48px; padding: 0 6px; font-size: 13px; }
     .score-num { font-size: 16px; }
     .section-head { flex-wrap: wrap; gap: 4px 12px; }
+    .thesis-conds { grid-template-columns: 1fr; }
+    .scenario-input.wide { width: 100%; }
+    .thesis-form label,
+    .catalyst-form label { flex: 1 1 100%; }
+    .thesis-actions-row { margin-left: 0; }
+    .catalyst-table { min-width: 760px; }
   }
 </style>
 </head>
@@ -1389,6 +1574,83 @@
         </div>
         <div class="empty" id="scenarioEmpty" hidden>暂无推演结果</div>
         <p class="footnote" id="scenarioFootnote">幅度按配置中的传导方向与弹性区间逐段相乘，属于条件推演，不构成投资建议。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Thesis 账本</h2>
+          <span class="section-meta" id="thesisMeta">可证伪判断 · 仅作研究记录</span>
+          <button class="text-btn" id="thesisToggle" type="button">记录判断</button>
+        </div>
+        <div class="thesis-form" id="thesisForm" hidden>
+          <input class="scenario-input wide" id="thesisTitle" maxlength="80"
+                 placeholder="判断标题，如 批价下行将在两季度内传导至报表">
+          <label>方向
+            <select class="scenario-select" id="thesisDirection">
+              <option value="down">下行</option>
+              <option value="up">上行</option>
+              <option value="neutral">中性</option>
+            </select>
+          </label>
+          <label>窗口
+            <input class="scenario-input wide" id="thesisHorizon" maxlength="40" placeholder="如 未来两个季度">
+          </label>
+          <label>置信度
+            <input class="scenario-input" id="thesisConfidence" type="number" min="0" max="100" value="50">
+            <span>%</span>
+          </label>
+          <textarea class="thesis-input" id="thesisCore" rows="2"
+                    placeholder="核心逻辑：数据链路为什么指向这个方向"></textarea>
+          <textarea class="thesis-input" id="thesisConfirm" rows="2"
+                    placeholder="确认条件：看到什么算成立"></textarea>
+          <textarea class="thesis-input" id="thesisInvalidate" rows="2"
+                    placeholder="证伪条件：看到什么算推翻"></textarea>
+          <div class="thesis-actions">
+            <button class="chain-load" id="thesisSubmit" type="button">保存判断</button>
+            <span class="scenario-note" id="thesisNote"></span>
+          </div>
+        </div>
+        <div id="thesisList"></div>
+        <div class="empty" id="thesisEmpty">暂无判断记录</div>
+        <p class="footnote">每条判断都要写清确认与证伪条件，状态只按实际情况切换，不做事后修改逻辑。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>催化剂日历</h2>
+          <span class="section-meta" id="catalystMeta">待发生 — · 仅提醒何时该看什么</span>
+          <button class="text-btn" id="catalystToggle" type="button">添加催化剂</button>
+        </div>
+        <div class="catalyst-form" id="catalystForm" hidden>
+          <label>日期
+            <input class="scenario-input" id="catalystDate" type="date">
+          </label>
+          <input class="scenario-input wide" id="catalystTitle" maxlength="80" placeholder="事件，如 三季报披露">
+          <label>类型
+            <select class="scenario-select" id="catalystKind">
+              <option value="earnings">财报日</option>
+              <option value="price">批价窗口</option>
+              <option value="policy">政策节点</option>
+              <option value="other">其他</option>
+            </select>
+          </label>
+          <input class="scenario-input wide" id="catalystRelated" maxlength="60" placeholder="关联环节或指标，可留空">
+          <input class="scenario-input wide" id="catalystExpectation" maxlength="200" placeholder="届时看什么，可留空">
+          <button class="chain-load" id="catalystSubmit" type="button">添加</button>
+          <span class="scenario-note" id="catalystNote"></span>
+        </div>
+        <div class="table-wrap" id="catalystWrap">
+          <table class="data-table catalyst-table">
+            <thead>
+              <tr>
+                <th>日期</th><th>剩余</th><th>事件</th><th>类型</th><th>关联</th><th>届时看什么</th><th>状态</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="catalystBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="catalystEmpty">暂无催化剂</div>
+        <p class="footnote">催化剂的临近与逾期按事件日期计算，只提醒何时该看什么，不预测事件结果。</p>
       </section>
 
       <section class="section">
@@ -2242,6 +2504,236 @@
     }
   }
 
+  const THESIS_STATUS_LABEL = { active: "待验证", confirmed: "成立", invalidated: "已证伪" };
+
+  function createThesisCard() {
+    const card = element("article", "thesis-card");
+    const head = element("div", "thesis-head");
+    const title = element("span", "thesis-title");
+    const dir = element("span", "dir-tag");
+    const conf = element("span", "thesis-conf");
+    const status = element("span", "thesis-status");
+    head.append(title, dir, conf, status);
+    const logic = element("p", "thesis-logic");
+    const conds = element("div", "thesis-conds");
+    const confirm = element("p", "thesis-cond confirm");
+    const invalidate = element("p", "thesis-cond invalidate");
+    conds.append(confirm, invalidate);
+    const foot = element("div", "thesis-foot");
+    const meta = element("span", "thesis-meta");
+    foot.append(meta);
+    card.append(head, logic, conds, foot);
+    card._refs = { title, dir, conf, status, logic, confirm, invalidate, meta, foot };
+    return card;
+  }
+
+  function updateThesisCard(card, item) {
+    const refs = card._refs;
+    setText(refs.title, item.title);
+    refs.dir.className = "dir-tag " + item.direction;
+    setText(refs.dir, item.direction_label);
+    setText(refs.conf, "置信度 " + item.confidence + "%");
+    refs.status.className = "thesis-status " + item.status;
+    setText(refs.status, item.status_label);
+    setText(refs.logic, item.core_logic || "");
+    setText(refs.confirm, item.confirm_condition || "—");
+    setText(refs.invalidate, item.invalidate_condition || "—");
+    const parts = [];
+    if (item.horizon) parts.push("窗口 " + item.horizon);
+    if (item.age_days !== null && item.age_days !== undefined) parts.push("已记录 " + item.age_days + " 天");
+    if (item.updated_at) parts.push("更新 " + item.updated_at.slice(0, 10));
+    setText(refs.meta, parts.join(" · "));
+
+    const old = refs.foot.querySelector(".thesis-actions-row");
+    if (old) old.remove();
+    const actions = element("span", "thesis-actions-row");
+    const options = item.status === "active"
+      ? [["confirmed", "标记成立"], ["invalidated", "标记证伪"]]
+      : [["active", "恢复待验证"]];
+    for (const [status, label] of options) {
+      const button = element("button", "mini-action", label);
+      button.type = "button";
+      button.addEventListener("click", () => setThesisStatus(item.id, status));
+      actions.appendChild(button);
+    }
+    refs.foot.appendChild(actions);
+  }
+
+  function createCatalystRow() {
+    const row = document.createElement("tr");
+    const dateCell = element("td", "cell-num");
+    const leftCell = document.createElement("td");
+    const timing = element("span", "cat-timing");
+    leftCell.appendChild(timing);
+    const titleCell = element("td", "cell-name");
+    const kindCell = document.createElement("td");
+    const kind = element("span", "type-badge");
+    kindCell.appendChild(kind);
+    const relatedCell = element("td", "cell-sub");
+    const expectCell = element("td", "cat-expect");
+    const statusCell = document.createElement("td");
+    const status = element("span", "cat-status");
+    statusCell.appendChild(status);
+    const actionCell = document.createElement("td");
+    const actions = element("span", "cat-actions");
+    actionCell.appendChild(actions);
+    row.append(dateCell, leftCell, titleCell, kindCell, relatedCell, expectCell, statusCell, actionCell);
+    row._refs = { date: dateCell, timing, title: titleCell, kind, related: relatedCell, expect: expectCell, status, actions };
+    return row;
+  }
+
+  function updateCatalystRow(row, item) {
+    const refs = row._refs;
+    setText(refs.date, item.event_date);
+    refs.timing.className = "cat-timing " + item.phase;
+    setText(refs.timing, item.timing_label);
+    setText(refs.title, item.title);
+    setText(refs.kind, item.kind_label);
+    setText(refs.related, item.related || "—");
+    setText(refs.expect, item.expectation || "—");
+    refs.status.className = "cat-status " + item.status;
+    setText(refs.status, item.status_label);
+    refs.actions.textContent = "";
+    const options = item.status === "pending"
+      ? [["done", "已发生"], ["missed", "未发生"]]
+      : [["pending", "恢复待办"]];
+    for (const [status, label] of options) {
+      const button = element("button", "mini-action", label);
+      button.type = "button";
+      button.addEventListener("click", () => setCatalystStatus(item.id, status));
+      refs.actions.appendChild(button);
+    }
+  }
+
+  function renderThesis(board) {
+    const data = board || {};
+    const theses = data.theses || [];
+    syncKeyed($("thesisList"), theses, (item) => item.id, createThesisCard, updateThesisCard);
+    toggleEmpty($("thesisList"), $("thesisEmpty"), theses.length > 0, "暂无判断记录，点「记录判断」写下第一条");
+    const stats = data.stats || {};
+    setText(
+      $("thesisMeta"),
+      "待验证 " + (stats.active || 0) + " · 成立 " + (stats.confirmed || 0) + " · 已证伪 " + (stats.invalidated || 0)
+    );
+
+    const catalysts = data.catalysts || [];
+    syncKeyed($("catalystBody"), catalysts, (item) => item.id, createCatalystRow, updateCatalystRow);
+    toggleEmpty($("catalystWrap"), $("catalystEmpty"), catalysts.length > 0, "暂无催化剂，点「添加催化剂」记下最近的观察窗口");
+    const cs = data.catalyst_stats || {};
+    setText(
+      $("catalystMeta"),
+      "待发生 " + (cs.pending || 0) + " · 7 天内 " + (cs.soon || 0) + " · 逾期 " + (cs.overdue || 0)
+    );
+  }
+
+  async function submitThesis() {
+    if (!state.chain) return;
+    const payload = {
+      title: $("thesisTitle").value.trim(),
+      direction: $("thesisDirection").value,
+      horizon: $("thesisHorizon").value.trim(),
+      confidence: Number($("thesisConfidence").value),
+      core_logic: $("thesisCore").value.trim(),
+      confirm_condition: $("thesisConfirm").value.trim(),
+      invalidate_condition: $("thesisInvalidate").value.trim()
+    };
+    if (!payload.title) {
+      setText($("thesisNote"), "请填写判断标题");
+      return;
+    }
+    if (!payload.core_logic || !payload.confirm_condition || !payload.invalidate_condition) {
+      setText($("thesisNote"), "核心逻辑、确认条件与证伪条件都要填写");
+      return;
+    }
+    if (!Number.isInteger(payload.confidence) || payload.confidence < 0 || payload.confidence > 100) {
+      setText($("thesisNote"), "置信度需在 0 到 100 之间");
+      return;
+    }
+    const button = $("thesisSubmit");
+    button.disabled = true;
+    setText($("thesisNote"), "保存中…");
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/theses", payload
+      );
+      renderThesis(data);
+      $("thesisTitle").value = "";
+      $("thesisHorizon").value = "";
+      $("thesisCore").value = "";
+      $("thesisConfirm").value = "";
+      $("thesisInvalidate").value = "";
+      setText($("thesisNote"), "已保存");
+    } catch (err) {
+      setText($("thesisNote"), "保存失败：" + err.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function setThesisStatus(thesisId, status) {
+    if (!state.chain) return;
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/theses/" + thesisId + "/status",
+        { status }
+      );
+      renderThesis(data);
+      setText($("thesisNote"), "状态已更新为「" + (THESIS_STATUS_LABEL[status] || status) + "」");
+    } catch (err) {
+      setText($("thesisNote"), "更新失败：" + err.message);
+    }
+  }
+
+  async function submitCatalyst() {
+    if (!state.chain) return;
+    const payload = {
+      event_date: $("catalystDate").value,
+      title: $("catalystTitle").value.trim(),
+      kind: $("catalystKind").value,
+      related: $("catalystRelated").value.trim(),
+      expectation: $("catalystExpectation").value.trim()
+    };
+    if (!payload.event_date) {
+      setText($("catalystNote"), "请选择事件日期");
+      return;
+    }
+    if (!payload.title) {
+      setText($("catalystNote"), "请填写事件名称");
+      return;
+    }
+    const button = $("catalystSubmit");
+    button.disabled = true;
+    setText($("catalystNote"), "保存中…");
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/catalysts", payload
+      );
+      renderThesis(data);
+      $("catalystTitle").value = "";
+      $("catalystRelated").value = "";
+      $("catalystExpectation").value = "";
+      setText($("catalystNote"), "已添加");
+    } catch (err) {
+      setText($("catalystNote"), "添加失败：" + err.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function setCatalystStatus(catalystId, status) {
+    if (!state.chain) return;
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/catalysts/" + catalystId + "/status",
+        { status }
+      );
+      renderThesis(data);
+      setText($("catalystNote"), "");
+    } catch (err) {
+      setText($("catalystNote"), "更新失败：" + err.message);
+    }
+  }
+
   function applySignals(data) {
     const signals = data.signals || [];
     syncKeyed($("signalList"), signals, (item) => item.id, createSignalRow, updateSignalRow);
@@ -2289,6 +2781,7 @@
 
     renderTransmission(data.transmission);
     if (!state.scenarioCustom) renderScenario(data.scenario, (data.transmission || {}).chain);
+    renderThesis(data.thesis);
     renderChainIndex(data.chain_index);
     renderSignalStudy(data.signal_study);
     const valuationContext = data.valuation_context || {};
@@ -2609,6 +3102,27 @@
   $("chainLoad").addEventListener("click", () => loadChain($("chainInput").value));
 
   $("scenarioRun").addEventListener("click", () => runScenario());
+
+  $("thesisToggle").addEventListener("click", () => {
+    const form = $("thesisForm");
+    form.hidden = !form.hidden;
+    if (!form.hidden) $("thesisTitle").focus();
+  });
+
+  $("thesisSubmit").addEventListener("click", () => submitThesis());
+
+  $("catalystToggle").addEventListener("click", () => {
+    const form = $("catalystForm");
+    form.hidden = !form.hidden;
+    if (form.hidden) return;
+    if (!$("catalystDate").value) {
+      const now = new Date();
+      $("catalystDate").value = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+    }
+    $("catalystTitle").focus();
+  });
+
+  $("catalystSubmit").addEventListener("click", () => submitCatalyst());
 
   $("scenarioShock").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

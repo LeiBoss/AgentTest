@@ -38,6 +38,14 @@ from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
 from src.report import ReportError, build_report_data, generate_report
 from src.scenario import DEFAULT_SHOCK_PCT, ScenarioError, run_scenario
+from src.thesis import (
+    ThesisError,
+    create_catalyst,
+    create_thesis,
+    set_catalyst_status,
+    set_thesis_status,
+    thesis_board,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -442,6 +450,54 @@ def chain_triggers(name: str) -> dict[str, Any]:
     config = _load_chain(name)
     with closing(_connect()) as conn:
         return _trigger_payload(conn, config)
+
+
+@app.get("/api/chain/{name}/thesis")
+def chain_thesis(name: str) -> dict[str, Any]:
+    """返回 Thesis 账本与催化剂日历。"""
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        return thesis_board(conn, config.chain_name)
+
+
+@app.post("/api/chain/{name}/theses")
+def add_thesis(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            return create_thesis(conn, config.chain_name, payload or {})
+        except ThesisError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/chain/{name}/theses/{thesis_id}/status")
+def change_thesis_status(name: str, thesis_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            return set_thesis_status(conn, config.chain_name, thesis_id, payload or {})
+        except ThesisError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/chain/{name}/catalysts")
+def add_catalyst(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            return create_catalyst(conn, config.chain_name, payload or {})
+        except ThesisError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/chain/{name}/catalysts/{catalyst_id}/status")
+def change_catalyst_status(name: str, catalyst_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            return set_catalyst_status(conn, config.chain_name, catalyst_id, payload or {})
+        except ThesisError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/chain/{name}/metrics")
