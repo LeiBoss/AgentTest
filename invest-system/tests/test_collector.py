@@ -105,6 +105,19 @@ def test_local_source_uses_history(
     assert result["T01"] == pytest.approx(2300.0)
 
 
+def test_unsupported_financial_metric_does_not_block_others(
+    conn: sqlite3.Connection, valid_payload: dict[str, Any]
+) -> None:
+    payload = _all_local(valid_payload)
+    payload["triggers"][0]["src"] = "财报"
+    upsert_metric(conn, "600519", "2026-01-05", "T02", 1200.0)
+
+    result = collect_chain(conn, _config(payload), "600519")
+
+    assert result["_missing_T01"] is None
+    assert result["T02"] == pytest.approx(1200.0)
+
+
 def test_unknown_source_raises(
     conn: sqlite3.Connection,
     valid_payload: dict[str, Any],

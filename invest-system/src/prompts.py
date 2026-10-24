@@ -20,7 +20,7 @@ P5_SYSTEM = """你是产业链结构建模助手。用户给出一个产业链�
 1. chain_name 与用户输入完全一致。
 2. triggers 8-10 个，id 为英文小写下划线命名且唯一，name 为中文指标名。
 3. layer 只能取 price/inv/fin/demand/supply/margin，8 个触发器至少覆盖 5 种，且必须各含至少 1 个 demand 和 margin。
-4. lead 只能取 lead/sync/lag；src 只能取 财报/乘联会/统计局/渠道调研，非公开数据用 渠道调研；freq 用 周/月/季；unit 用中文单位如 元/瓶、%、月、指数。
+4. lead 只能取 lead/sync/lag；src 只能取 财报 或 渠道调研；src=财报 时 id 必须是 contract_liab 或 gross_margin，其余指标一律用 渠道调研；freq 用 周/月/季；unit 用中文单位如 元/瓶、%、月、指数。
 5. 三段区间必须连续且单调：
    - rule=above：[a,b]、[b,c]、[c,d]，且 a<b<c<d；
    - rule=below：[b,a]、[c,b]、[d,c]，且 d<c<b<a。
