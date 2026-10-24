@@ -45,8 +45,17 @@ STATIC_DIR = BASE_DIR / "static"
 DB_PATH = Path(os.getenv("INVEST_DB", str(BASE_DIR / "invest.db")))
 SYMBOL = os.getenv("SYMBOL", "600519")
 
-STATUS_LABELS = {"normal": "正常", "watch": "关注", "alert": "触发"}
-CHOKE_TYPE_LABELS = {"ecosystem": "生态位", "resource": "资源", "crowded": "拥挤"}
+STATUS_LABELS = {"normal": "正常", "watch": "关注", "alert": "触发", "no_data": "无数据"}
+CHOKE_TYPE_LABELS = {
+    "technology": "技术",
+    "resource": "资源",
+    "capacity": "产能",
+    "channel": "渠道",
+    "regulation": "监管",
+    "brand": "品牌",
+    "ecosystem": "生态位",
+    "crowded": "拥挤",
+}
 CHOKE_STATE_LABELS = {
     "tight": "收紧",
     "balanced": "平衡",
@@ -136,13 +145,16 @@ def _latest_signal_ts(conn: sqlite3.Connection, chain: str) -> str | None:
 
 def _trigger_payload(conn: sqlite3.Connection, config: ChainConfig) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
-    counts = {"normal": 0, "watch": 0, "alert": 0}
+    counts = {"normal": 0, "watch": 0, "alert": 0, "no_data": 0}
     for trigger in config.triggers:
         history = get_metric_history(conn, SYMBOL, trigger.id, limit=2)
         value = history[0][0] if history else None
-        status = _status(conn, config.chain_name, trigger.id)
-        if status not in counts:
-            status = "normal"
+        if value is None:
+            status = "no_data"
+        else:
+            status = _status(conn, config.chain_name, trigger.id)
+            if status not in ("normal", "watch", "alert"):
+                status = "normal"
         counts[status] += 1
         items.append(
             {

@@ -250,6 +250,7 @@
   .trigger-card:hover { background: var(--soft); }
   .trigger-card.watch { border-left-color: var(--watch); }
   .trigger-card.alert { border-left-color: var(--alert); }
+  .trigger-card.no_data { border-left-color: var(--line); }
 
   .trigger-name {
     font-size: 14px;
@@ -290,6 +291,7 @@
   .trigger-status.normal { color: var(--normal); }
   .trigger-status.watch { color: var(--watch); }
   .trigger-status.alert { color: var(--alert); }
+  .trigger-status.no_data { color: var(--muted); }
 
   .signal-row {
     display: grid;
@@ -872,7 +874,11 @@
     const triggers = data.triggers || [];
     syncKeyed($("triggerGrid"), triggers, (item) => item.id, createTriggerCard, updateTriggerCard);
     toggleEmpty($("triggerGrid"), $("triggersEmpty"), triggers.length > 0, "暂无触发器数据");
-    setText($("triggerCount"), "共 " + triggers.length + " 个");
+    const noData = (data.stats || {}).no_data ?? 0;
+    setText(
+      $("triggerCount"),
+      "共 " + triggers.length + " 个" + (noData > 0 ? " · " + noData + " 项无数据" : "")
+    );
 
     const stats = data.stats || {};
     setText($("statNormal"), String(stats.normal ?? 0));
