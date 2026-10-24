@@ -36,7 +36,7 @@ from src.db import (
 )
 from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
-from src.report import ReportError, generate_report
+from src.report import ReportError, build_report_data, generate_report
 
 logger = logging.getLogger(__name__)
 
@@ -410,6 +410,14 @@ def create_report(name: str) -> dict[str, Any]:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         insert_report(conn, config.chain_name, payload, payload["generated_at"])
     return {"report": payload}
+
+
+@app.get("/api/chain/{name}/profile")
+def chain_profile(name: str) -> dict[str, Any]:
+    """返回当前链的静态说明与动态状态，供仪表盘侧栏使用。"""
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        return build_report_data(config, conn, SYMBOL)
 
 
 @app.get("/api/chain/{name}/triggers")
