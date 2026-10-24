@@ -228,16 +228,24 @@
   .status.alert { color: var(--alert); }
   .status.no_data { color: var(--muted); }
 
-  .pct {
-    white-space: nowrap;
+  .pct { white-space: nowrap; }
+
+  .pct .tag {
+    display: inline-block;
+    margin: 0;
+    padding: 2px 7px;
+    border-radius: 5px;
     font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--muted);
+    background: #f2f3f5;
+    white-space: nowrap;
   }
 
-  .pct.high { color: #8a5312; }
-  .pct.low { color: #1d5b7a; }
-  .pct.mid { color: #51606b; }
-  .pct.none { color: var(--muted); }
+  .pct .tag.high { color: #8a5312; background: rgba(154, 100, 15, .12); }
+  .pct .tag.low { color: #1d5b7a; background: rgba(29, 91, 122, .10); }
+  .pct .tag.mid { color: #51606b; background: rgba(81, 96, 107, .09); }
 
   .valuation-context {
     margin: 0 0 12px;
@@ -666,6 +674,12 @@
     return "mid";
   }
 
+  function pctCell(item) {
+    const cell = el("td", "pct");
+    cell.appendChild(el("span", "tag " + pctTone(item), pctText(item)));
+    return cell;
+  }
+
   function renderTriggers(report) {
     const body = $("triggerBody");
     body.textContent = "";
@@ -675,7 +689,7 @@
       name.title = item.meaning || "";
       const layer = el("td", "", LAYER_LABELS[item.layer] || item.layer);
       const value = el("td", "num", item.value_text + (item.unit && item.value_text !== "—" ? " " + item.unit : ""));
-      const pct = el("td", "pct " + pctTone(item), pctText(item));
+      const pct = pctCell(item);
       const statusText = item.status_label + (item.streak >= 2 ? " · 连续 " + item.streak + " 期" : "");
       const status = el("td", "status " + item.status, statusText);
       const date = el("td", "num", item.metric_date || "—");
@@ -748,7 +762,7 @@
         "num",
         item.value_text + (item.unit && item.value_text !== "—" ? " " + item.unit : "")
       );
-      const pct = el("td", "pct " + pctTone(item), pctText(item));
+      const pct = pctCell(item);
       pct.title = item.note || "";
       const samples = el("td", "num", item.samples ? item.samples + " 期" : "—");
       const date = el("td", "num", item.metric_date || "—");
