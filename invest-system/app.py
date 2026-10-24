@@ -1,4 +1,4 @@
-"""产业链跟踪只读 Web API。"""
+"""产业链跟踪 Web API 与页面。"""
 
 from __future__ import annotations
 
@@ -10,14 +10,32 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from src.auth import (
+    SESSION_COOKIE,
+    SESSION_TTL,
+    auth_enabled,
+    check_credentials,
+    make_token,
+    verify_token,
+)
+from src.chain_builder import ChainBuildError, ChainExistsError, create_chain
 from src.config_loader import load_chain_config
-from src.db import get_last_status, get_metric_history
+from src.db import (
+    get_last_status,
+    get_latest_report,
+    get_metric_history,
+    init_db,
+    insert_report,
+    now_iso,
+)
 from src.models import ChainConfig
+from src.report import ReportError, generate_report
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +56,34 @@ CHOKE_STATE_LABELS = {
 
 app = FastAPI(title="产业链跟踪", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+_PUBLIC_PATHS = frozenset({"/login", "/api/login", "/api/health", "/favicon.ico"})
+_PUBLIC_PREFIXES = ("/static/",)
+
+
+def _is_public(path: str) -> bool:
+    return path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PREFIXES)
+
+
+@app.middleware("http")
+async def _require_login(request: Request, call_next):
+    """未登录时页面跳转登录页，接口返回 401。"""
+    if not auth_enabled() or _is_public(request.url.path):
+        return await call_next(request)
+    if verify_token(request.cookies.get(SESSION_COOKIE)):
+        return await call_next(request)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "未登录"}, status_code=401)
+    target = request.url.path
+    if request.url.query:
+        target += "?" + request.url.query
+    return RedirectResponse(url="/login?next=" + quote(target, safe=""), status_code=302)
+
+
+@app.on_event("startup")
+def _ensure_schema() -> None:
+    """建表，确保 Web 先于采集任务启动时也能正常查询。"""
+    init_db(str(DB_PATH)).close()
 
 
 def _connect() -> sqlite3.Connection:
@@ -221,14 +267,136 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/login")
+def login_page(request: Request):
+    if auth_enabled() and verify_token(request.cookies.get(SESSION_COOKIE)):
+        return RedirectResponse(url="/", status_code=302)
+    return FileResponse(STATIC_DIR / "login.html")
+
+
+@app.post("/api/login")
+async def login(request: Request) -> JSONResponse:
+    try:
+        data = await request.json()
+    except Exception:  # noqa: BLE001 - 非 JSON 输入统一按空处理
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    user = str(data.get("username", ""))
+    password = str(data.get("password", ""))
+    if not check_credentials(user, password):
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    response = JSONResponse({"ok": True, "user": user})
+    response.set_cookie(
+        SESSION_COOKIE,
+        make_token(user),
+        max_age=SESSION_TTL,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
+@app.post("/api/logout")
+def logout() -> JSONResponse:
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return response
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return _health_payload()
 
 
+def _chain_item(name: str, path: Path, config: ChainConfig, conn: sqlite3.Connection) -> dict[str, Any]:
+    ids = [trigger.id for trigger in config.triggers]
+    placeholders = ",".join("?" for _ in ids)
+    rows = conn.execute(
+        f"SELECT metric_id, MAX(metric_date) AS d FROM daily_metric"
+        f" WHERE symbol = ? AND metric_id IN ({placeholders}) GROUP BY metric_id",
+        (SYMBOL, *ids),
+    ).fetchall()
+    dates = [row["d"] for row in rows if row["d"]]
+    signal = conn.execute(
+        "SELECT MAX(ts) AS ts FROM signal_log WHERE chain = ?", (name,)
+    ).fetchone()
+    report = conn.execute(
+        "SELECT MAX(ts) AS ts FROM report_log WHERE chain = ?", (name,)
+    ).fetchone()
+    return {
+        "name": name,
+        "file": path.name,
+        "trigger_count": len(config.triggers),
+        "layer_count": len({trigger.layer for trigger in config.triggers}),
+        "rule_count": len(config.rules),
+        "choke_count": len(config.choke_points),
+        "data_count": len(rows),
+        "data_date": max(dates) if dates else None,
+        "latest_signal_ts": signal["ts"] if signal is not None else None,
+        "report_ts": report["ts"] if report is not None else None,
+    }
+
+
 @app.get("/api/chains")
 def chains() -> dict[str, Any]:
-    return {"chains": sorted(_chain_paths())}
+    paths = _chain_paths()
+    items: list[dict[str, Any]] = []
+    with closing(_connect()) as conn:
+        for name, path in sorted(paths.items()):
+            try:
+                config = load_chain_config(str(path))
+                items.append(_chain_item(name, path, config, conn))
+            except Exception as exc:  # noqa: BLE001 - 单条链异常不影响整个列表
+                logger.warning("[app] chain item %s failed: %s", name, exc)
+    return {"chains": sorted(paths), "items": items}
+
+
+@app.post("/api/chains")
+def add_chain(payload: dict[str, Any]) -> dict[str, Any]:
+    name = str((payload or {}).get("name", "")).strip()
+    try:
+        config, path = create_chain(name, CONFIG_DIR)
+    except ChainExistsError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ChainBuildError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logger.info("[app] 生成产业链 %s -> %s", config.chain_name, path.name)
+    return {
+        "chain": config.chain_name,
+        "file": path.name,
+        "trigger_count": len(config.triggers),
+        "rule_count": len(config.rules),
+        "choke_count": len(config.choke_points),
+    }
+
+
+@app.get("/report")
+def report_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "report.html")
+
+
+@app.get("/api/report/{name}")
+def get_report(name: str) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        payload = get_latest_report(conn, config.chain_name)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="暂无研报，请先生成")
+    return {"report": payload}
+
+
+@app.post("/api/report/{name}")
+def create_report(name: str) -> dict[str, Any]:
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            payload = generate_report(config, conn, SYMBOL)
+        except ReportError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        insert_report(conn, config.chain_name, payload, payload["generated_at"])
+    return {"report": payload}
 
 
 @app.get("/api/chain/{name}/triggers")

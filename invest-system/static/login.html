@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 产业链跟踪</title>
+<style>
+  :root {
+    --bg: #f2f1ee;
+    --card: #ffffff;
+    --primary: #1a3a52;
+    --text: #23231f;
+    --muted: #7a7a72;
+    --line: #e3e2dd;
+    --alert: #a83b28;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; background: var(--bg); }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: var(--text);
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 40px 36px 32px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+  }
+
+  .sub {
+    margin: 6px 0 28px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  input {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 9px 12px;
+    margin-bottom: 18px;
+  }
+
+  input:focus { outline: none; border-color: var(--primary); }
+
+  button {
+    width: 100%;
+    font: inherit;
+    font-size: 15px;
+    color: #ffffff;
+    background: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+
+  button:hover { background: #163142; }
+  button:disabled { background: var(--muted); border-color: var(--muted); cursor: not-allowed; }
+
+  .error {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--alert);
+  }
+
+  .error[hidden] { display: none; }
+</style>
+</head>
+<body>
+<form class="card" id="loginForm" method="post" action="/api/login">
+  <h1>产业链跟踪</h1>
+  <p class="sub">请输入账号密码后进入仪表盘</p>
+
+  <label for="username">账号</label>
+  <input id="username" name="username" autocomplete="username" required>
+
+  <label for="password">密码</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+  <button id="submitBtn" type="submit">登录</button>
+  <p class="error" id="error" hidden></p>
+</form>
+
+<script>
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("error");
+  const submitBtn = document.getElementById("submitBtn");
+
+  function showError(message) {
+    errorBox.hidden = !message;
+    errorBox.textContent = message || "";
+  }
+
+  function targetPath() {
+    const next = new URLSearchParams(location.search).get("next") || "/";
+    return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showError("");
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "登录失败");
+      location.href = targetPath();
+    } catch (err) {
+      showError(err.message);
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

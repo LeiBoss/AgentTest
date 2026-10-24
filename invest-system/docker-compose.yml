@@ -14,7 +14,7 @@ services:
       SYMBOL: "600519"
     volumes:
       - ./data:/data
-      - ./config:/app/config:ro
+      - ./config:/app/config
     healthcheck:
       test:
         - CMD
