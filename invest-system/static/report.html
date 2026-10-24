@@ -536,6 +536,27 @@
     </section>
 
     <section class="block">
+      <h2>信号有效性<span class="hint">状态迁移后的链指数前瞻收益</span></h2>
+      <div class="table-wrap" id="signalStudyWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>触发器</th>
+              <th>事件</th>
+              <th>5日</th>
+              <th>20日</th>
+              <th>60日</th>
+              <th>20日胜率</th>
+              <th>20日超额</th>
+            </tr>
+          </thead>
+          <tbody id="signalStudyBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="signalStudyNote"></p>
+    </section>
+
+    <section class="block">
       <h2>组合规则</h2>
       <p id="rulesReading"></p>
       <div id="ruleList"></div>
@@ -729,6 +750,11 @@
     return el("td", "num" + (toneOf(value) ? " " + toneOf(value) : ""), value + suffix);
   }
 
+  function signedPctCell(value) {
+    if (value === null || value === undefined) return el("td", "num", "—");
+    return el("td", "num" + (toneOf(value) ? " " + toneOf(value) : ""), fmtPct(value));
+  }
+
   function renderChainIndex(report) {
     const box = $("chainIndex");
     box.textContent = "";
@@ -868,6 +894,44 @@
       li.appendChild(sub);
       list.appendChild(li);
     }
+  }
+
+  function renderSignalStudy(report) {
+    const body = $("signalStudyBody");
+    body.textContent = "";
+    const study = report.signal_study || {};
+    const rows = study.triggers || [];
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      const cell = el("td", "", "暂无可回测的状态迁移");
+      cell.colSpan = 7;
+      row.appendChild(cell);
+      body.appendChild(row);
+    }
+    for (const item of rows) {
+      const row = document.createElement("tr");
+      const nameCell = el("td", "", item.name);
+      const notes = [item.sample_label === "样本不足" ? "样本不足，仅作参考" : "样本充足"];
+      if (item.pending > 0) notes.push("未纳入样本 " + item.pending + " 次");
+      nameCell.appendChild(el("div", "company-sub", notes.join(" · ")));
+      row.append(
+        nameCell,
+        el("td", "num", String(item.events)),
+        signedPctCell(item.avg_5),
+        signedPctCell(item.avg_20),
+        signedPctCell(item.avg_60),
+        el("td", "num", item.win_20 === null || item.win_20 === undefined ? "—" : item.win_20 + "%"),
+        signedPctCell(item.excess_20)
+      );
+      body.appendChild(row);
+    }
+    const date = study.date ? "样本至 " + study.date : "暂无价格数据";
+    setText(
+      "signalStudyNote",
+      "等权链指数 · " + date + " · 覆盖 " + (study.price_coverage || "0/0")
+        + "；基准为等权链指数全样本同期平均收益，事件窗口可能重叠，样本少于 " + (study.min_events || 5)
+        + " 次时仅作参考，不构成统计结论。"
+    );
   }
 
   function renderRules(report) {
@@ -1039,6 +1103,7 @@
     renderValuation(report);
     setText("signalsReading", report.signals_reading);
     renderSignals(report);
+    renderSignalStudy(report);
     setText("rulesReading", report.rules_reading);
     renderRules(report);
     setText("chokeReading", report.choke_reading);

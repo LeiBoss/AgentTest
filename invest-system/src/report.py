@@ -13,6 +13,7 @@ from .analytics import indicator_stats
 from .compliance import ComplianceError, filter_or_raise
 from .company import chain_index, company_scorecards
 from .db import get_last_status
+from .event_study import signal_study
 from .llm import LLMError, call_llm
 from .models import ChainConfig
 from .prompts import P6_SYSTEM
@@ -218,6 +219,7 @@ def build_report_data(config: ChainConfig, conn: sqlite3.Connection, symbol: str
         "stages": [stage.model_dump() for stage in config.stages],
         "triggers": triggers,
         "signals": _signal_rows(conn, config),
+        "signal_study": signal_study(conn, config),
         "rules": _rule_rows(conn, config, statuses),
         "chokes": _choke_rows(conn, config),
         "chain_index": chain_index(companies),
