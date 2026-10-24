@@ -501,6 +501,87 @@
   .chain-note.good { color: var(--normal); }
   .chain-note.busy { color: var(--watch); }
 
+  .chain-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .data-panel {
+    margin-top: 14px;
+    padding: 18px 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  .data-panel[hidden] { display: none; }
+
+  .data-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .data-panel-head strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  .data-ids {
+    margin: 10px 0 12px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+    white-space: pre-line;
+  }
+
+  .data-input {
+    display: block;
+    width: 100%;
+    min-height: 150px;
+    padding: 10px 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    resize: vertical;
+  }
+
+  .data-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--card);
+  }
+
+  .data-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .data-actions label.chain-load { display: inline-block; }
+
+  .data-note {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: pre-wrap;
+  }
+
+  .data-note.bad { color: var(--alert); }
+  .data-note.good { color: var(--normal); }
+  .data-note.busy { color: var(--watch); }
+
   @media (max-width: 1023px) {
     .trigger-grid { grid-template-columns: repeat(2, 1fr); }
   }
@@ -559,13 +640,33 @@
 
   <section class="chain-bar" aria-label="产业链列表">
     <div class="chain-items" id="chainItems"></div>
-    <button class="text-btn" id="newChainToggle" type="button">新增产业链</button>
+    <div class="chain-actions">
+      <button class="text-btn" id="dataToggle" type="button">录入数据</button>
+      <button class="text-btn" id="newChainToggle" type="button">新增产业链</button>
+    </div>
   </section>
 
   <div class="chain-form" id="chainForm" hidden>
     <input class="chain-input" id="newChainName" placeholder="输入产业链名称，如 半导体" autocomplete="off">
     <button class="chain-load" id="chainGenerate" type="button">生成配置</button>
     <span class="chain-note" id="chainNote"></span>
+  </div>
+
+  <div class="data-panel" id="dataPanel" hidden>
+    <div class="data-panel-head">
+      <strong id="dataChain">录入渠道指标</strong>
+      <span>表头 metric_date,metric_id,value；日期不晚于今天，数值只写数字</span>
+    </div>
+    <div class="data-ids" id="dataIds"></div>
+    <textarea class="data-input" id="dataCsv" spellcheck="false"
+      placeholder="metric_date,metric_id,value&#10;2026-10-24,chip_price_index,102"></textarea>
+    <div class="data-actions">
+      <label class="chain-load" for="dataFile">选择 CSV 文件</label>
+      <input id="dataFile" type="file" accept=".csv,text/csv" hidden>
+      <button class="text-btn" id="dataFill" type="button">填入表头</button>
+      <button class="chain-load" id="dataImport" type="button">导入</button>
+      <span class="data-note" id="dataNote"></span>
+    </div>
   </div>
 
   <section class="overview" aria-label="状态概览">
@@ -642,6 +743,7 @@
     chain: null,
     chains: [],
     items: [],
+    triggers: [],
     signalsLimit: 10,
     judgments: []
   };
@@ -872,6 +974,7 @@
 
   function applyTriggers(data) {
     const triggers = data.triggers || [];
+    state.triggers = triggers;
     syncKeyed($("triggerGrid"), triggers, (item) => item.id, createTriggerCard, updateTriggerCard);
     toggleEmpty($("triggerGrid"), $("triggersEmpty"), triggers.length > 0, "暂无触发器数据");
     const noData = (data.stats || {}).no_data ?? 0;
@@ -944,6 +1047,54 @@
   function updateTitle(chain) {
     setText($("pageTitle"), chain + TITLE);
     $("reportLink").href = "/report?chain=" + encodeURIComponent(chain);
+  }
+
+  function setDataNote(text, kind) {
+    const note = $("dataNote");
+    note.className = "data-note" + (kind ? " " + kind : "");
+    setText(note, text || "");
+  }
+
+  function renderDataPanel() {
+    setText($("dataChain"), "录入渠道指标 · " + (state.chain || "未选择产业链"));
+    const lines = (state.triggers || []).map(
+      (item) => item.id + "  " + item.name + (item.unit ? "（" + item.unit + "）" : "")
+    );
+    setText($("dataIds"), lines.length ? "可用指标（metric_id）：\n" + lines.join("\n") : "触发器加载中");
+  }
+
+  async function importCsv() {
+    const button = $("dataImport");
+    const text = $("dataCsv").value.trim();
+    if (!state.chain) {
+      setDataNote("请先选择产业链", "bad");
+      return;
+    }
+    if (!text) {
+      setDataNote("请粘贴或选择 CSV 文件", "bad");
+      return;
+    }
+    button.disabled = true;
+    setDataNote("正在导入…", "busy");
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/metrics",
+        { csv: text }
+      );
+      const missing = data.missing || [];
+      const head = "已导入 " + data.imported + " 条，覆盖 " + data.metric_ids.length + " 个指标";
+      setDataNote(
+        missing.length ? head + "；仍无数据 " + missing.length + " 个：" + missing.join("、") : head + "；全部指标已有数据",
+        missing.length ? "" : "good"
+      );
+      await loadAll();
+      await refreshChains();
+      renderDataPanel();
+    } catch (err) {
+      setDataNote("导入失败：" + err.message, "bad");
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function refreshChains() {
@@ -1069,10 +1220,13 @@
       return;
     }
     state.chain = chain;
+    state.triggers = [];
     state.signalsLimit = 10;
     $("chainInput").value = chain;
     updateTitle(chain);
     renderChainList();
+    renderDataPanel();
+    setDataNote("");
     setText($("subtitle"), "加载中");
     loadAll();
   }
@@ -1090,6 +1244,45 @@
     const form = $("chainForm");
     form.hidden = !form.hidden;
     if (!form.hidden) $("newChainName").focus();
+  });
+
+  $("dataToggle").addEventListener("click", () => {
+    const panel = $("dataPanel");
+    panel.hidden = !panel.hidden;
+    if (panel.hidden) return;
+    renderDataPanel();
+    if (!$("dataCsv").value.trim()) {
+      $("dataCsv").value = "metric_date,metric_id,value\n";
+    }
+    $("dataCsv").focus();
+  });
+
+  $("dataFill").addEventListener("click", () => {
+    $("dataCsv").value = "metric_date,metric_id,value\n";
+    setDataNote("已填入表头，按「日期,指标 id,数值」追加行", "");
+    $("dataCsv").focus();
+  });
+
+  $("dataFile").addEventListener("change", async () => {
+    const file = $("dataFile").files[0];
+    if (!file) return;
+    try {
+      $("dataCsv").value = await file.text();
+      setDataNote("已载入 " + file.name, "");
+    } catch (err) {
+      setDataNote("读取文件失败：" + err.message, "bad");
+    } finally {
+      $("dataFile").value = "";
+    }
+  });
+
+  $("dataImport").addEventListener("click", () => importCsv());
+
+  $("dataCsv").addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      importCsv();
+    }
   });
 
   $("chainGenerate").addEventListener("click", () => generateChainConfig());

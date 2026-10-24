@@ -98,7 +98,10 @@ sudo systemctl daemon-reload
 
 ## 7. 手工导入渠道指标
 
-渠道调研、研报类指标没有公开接口，用 CSV 导入。文件放在宿主机 `data/manual/`，容器内对应 `/data/manual/`。
+渠道调研、研报类指标没有公开接口，用 CSV 导入。也可以在仪表盘点「录入数据」直接粘贴或选择 CSV，
+页面会列出当前链可用指标与仍无数据的触发器，校验规则与命令行完全一致。
+
+命令行方式：文件放在宿主机 `data/manual/`，容器内对应 `/data/manual/`。
 
 ```bash
 mkdir -p data/manual

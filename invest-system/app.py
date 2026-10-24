@@ -34,6 +34,7 @@ from src.db import (
     insert_report,
     now_iso,
 )
+from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
 from src.report import ReportError, generate_report
 
@@ -416,6 +417,31 @@ def chain_triggers(name: str) -> dict[str, Any]:
     config = _load_chain(name)
     with closing(_connect()) as conn:
         return _trigger_payload(conn, config)
+
+
+@app.post("/api/chain/{name}/metrics")
+def import_chain_metrics(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """导入前端粘贴或上传的渠道指标 CSV。"""
+    config = _load_chain(name)
+    text = str((payload or {}).get("csv", ""))
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="CSV 内容为空")
+    with closing(_connect()) as conn:
+        try:
+            report = import_metrics_text(conn, config, SYMBOL, text)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logger.info(
+        "[app] 导入指标 %s: %s 条，仍无数据 %s",
+        config.chain_name,
+        report.imported,
+        len(report.missing),
+    )
+    return {
+        "imported": report.imported,
+        "metric_ids": report.metric_ids,
+        "missing": report.missing,
+    }
 
 
 @app.get("/api/chain/{name}/signals")
