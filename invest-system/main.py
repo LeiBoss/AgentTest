@@ -8,7 +8,7 @@ import sys
 from contextlib import contextmanager
 from typing import Iterator
 
-from src.collector import collect_chain
+from src.collector import collect_chain, collect_valuation
 from src.compliance import ComplianceError, filter_or_raise
 from src.config_loader import load_chain_config, validate_chain_config
 from src.db import get_last_status, get_metric_history, init_db, set_signal_payload
@@ -54,6 +54,10 @@ def run_chain(chain_yaml_path: str, symbol: str) -> dict:
             values = collect_chain(conn, config, symbol)
             if not _has_data(values):
                 raise CollectError("采集阶段无任何可用数据，请检查数据源或先补齐渠道调研数据")
+            try:
+                logger.info("[main] valuation rows=%s", collect_valuation(conn, symbol))
+            except Exception as exc:  # noqa: BLE001 - 估值抓取失败不阻断主流程
+                logger.warning("[main] valuation skipped: %s", exc)
 
         with _step("judge"):
             transitions = run_judge(conn, config, values)

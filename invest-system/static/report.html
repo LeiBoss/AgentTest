@@ -357,6 +357,9 @@
     #companyWrap th:nth-child(-n+5),
     #companyWrap td:nth-child(-n+5) { white-space: nowrap; }
     #companyWrap td:last-child { min-width: 160px; }
+    #valuationWrap table { min-width: 0; }
+    #valuationWrap th,
+    #valuationWrap td { padding-left: 6px; padding-right: 6px; }
     .rule-cond .tag { display: block; margin: 4px 0 0; }
     .top { align-items: flex-start; }
   }
@@ -460,6 +463,25 @@
       </div>
       <h3>数据口径与时效说明</h3>
       <ul class="data-notes" id="dataNotes"></ul>
+    </section>
+
+    <section class="block">
+      <h2>估值分位对照</h2>
+      <div class="table-wrap" id="valuationWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>指标</th>
+              <th>最新值</th>
+              <th>历史分位</th>
+              <th>样本</th>
+              <th>数据日期</th>
+            </tr>
+          </thead>
+          <tbody id="valuationBody"></tbody>
+        </table>
+      </div>
+      <p class="note">估值分位按近五年日频数据计算，低位不等于低估，需结合盈利与现金流判断。</p>
     </section>
 
     <section class="block">
@@ -681,6 +703,36 @@
     }
   }
 
+  function renderValuation(report) {
+    const body = $("valuationBody");
+    body.textContent = "";
+    const items = report.valuation || [];
+    if (!items.length) {
+      const row = document.createElement("tr");
+      const cell = el("td", "", "暂无估值数据");
+      cell.colSpan = 5;
+      row.appendChild(cell);
+      body.appendChild(row);
+      return;
+    }
+    for (const item of items) {
+      const row = document.createElement("tr");
+      const name = el("td", "", item.name);
+      name.title = item.note || "";
+      const value = el(
+        "td",
+        "num",
+        item.value_text + (item.unit && item.value_text !== "—" ? " " + item.unit : "")
+      );
+      const pct = el("td", "pct " + pctTone(item), pctText(item));
+      pct.title = item.note || "";
+      const samples = el("td", "num", item.samples ? item.samples + " 期" : "—");
+      const date = el("td", "num", item.metric_date || "—");
+      row.append(name, value, pct, samples, date);
+      body.appendChild(row);
+    }
+  }
+
   function renderSignals(report) {
     const list = $("signalList");
     list.textContent = "";
@@ -829,6 +881,7 @@
 
     renderStats(report);
     renderTriggers(report);
+    renderValuation(report);
     setText("signalsReading", report.signals_reading);
     renderSignals(report);
     setText("rulesReading", report.rules_reading);

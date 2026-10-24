@@ -21,6 +21,14 @@ from .models import ChainConfig, Trigger
 logger = logging.getLogger(__name__)
 
 HISTORY_LIMIT = 8
+VALUATION_YEARS = 5
+_VALUATION_FIELDS = {
+    "peTTM": "pe_ttm",
+    "pbMRQ": "pb_mrq",
+    "psTTM": "ps_ttm",
+    "pcfNcfTTM": "pcf_ncf_ttm",
+}
+_VALUATION_IDS = tuple(_VALUATION_FIELDS.values())
 _LOCAL_SOURCES = frozenset({"渠道调研", "研报"})
 
 _BS_LOGGED_IN = False
@@ -341,3 +349,80 @@ def collect_chain(
                 values[f"_missing_{trigger.id}"] = None
 
     return values
+
+
+def _last_valuation_date(conn: sqlite3.Connection, symbol: str) -> str | None:
+    """已落库的最新估值日期，用于增量拉取。"""
+    marks = ", ".join("?" for _ in _VALUATION_IDS)
+    row = conn.execute(
+        "SELECT MAX(metric_date) FROM daily_metric"
+        f" WHERE symbol = ? AND metric_id IN ({marks})",
+        (symbol, *_VALUATION_IDS),
+    ).fetchone()
+    return str(row[0]) if row and row[0] else None
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=5, max=30),
+    reraise=True,
+)
+def _query_valuation_rows(
+    symbol: str, start_date: str, end_date: str
+) -> list[tuple[str, str, str, float]]:
+    """Baostock 日频估值字段，返回 (symbol, date, metric_id, value) 列表。"""
+    _ensure_baostock_login()
+    rs = bs.query_history_k_data_plus(
+        _to_bs_code(symbol),
+        "date," + ",".join(_VALUATION_FIELDS),
+        start_date=start_date,
+        end_date=end_date,
+        frequency="d",
+        adjustflag="3",
+    )
+    if rs.error_code != "0":
+        raise ConnectionError(f"Baostock 估值查询失败: {rs.error_msg}")
+    rows: list[tuple[str, str, str, float]] = []
+    while rs.next():
+        row = dict(zip(rs.fields, rs.get_row_data()))
+        day = str(row.get("date", ""))[:10]
+        if not day:
+            continue
+        for field, metric_id in _VALUATION_FIELDS.items():
+            raw = row.get(field, "")
+            if raw in ("", None):
+                continue
+            try:
+                rows.append((symbol, day, metric_id, float(raw)))
+            except (TypeError, ValueError):
+                continue
+    return rows
+
+
+def collect_valuation(
+    conn: sqlite3.Connection, symbol: str, years: int = VALUATION_YEARS
+) -> int:
+    """增量拉取估值指标并落库，返回写入的记录数。"""
+    from datetime import date, timedelta
+
+    today = date.today()
+    last = _last_valuation_date(conn, symbol)
+    try:
+        start = (
+            date.fromisoformat(last) - timedelta(days=10)
+            if last
+            else today - timedelta(days=365 * years + 30)
+        )
+    except ValueError:
+        start = today - timedelta(days=365 * years + 30)
+
+    rows = _query_valuation_rows(symbol, start.isoformat(), today.isoformat())
+    if not rows:
+        return 0
+    conn.executemany(
+        "INSERT OR REPLACE INTO daily_metric (symbol, metric_date, metric_id, value)"
+        " VALUES (?, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+    return len(rows)

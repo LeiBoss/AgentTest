@@ -48,6 +48,7 @@ def _patch_flow(
     monkeypatch: pytest.MonkeyPatch, values: dict[str, float], transitions: list[dict]
 ) -> None:
     monkeypatch.setattr(main_module, "collect_chain", lambda *args, **kwargs: values)
+    monkeypatch.setattr(main_module, "collect_valuation", lambda *args, **kwargs: 0)
     monkeypatch.setattr(main_module, "run_judge", lambda *args, **kwargs: transitions)
     monkeypatch.setattr(
         main_module,

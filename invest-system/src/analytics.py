@@ -26,10 +26,12 @@ def _age_days(metric_date: str | None) -> int | None:
     return max((date.today() - day).days, 0)
 
 
-def _pct_rank(series: list[tuple[float, str]]) -> tuple[int | None, str]:
+def _pct_rank(
+    series: list[tuple[float, str]], min_samples: int = MIN_SAMPLES
+) -> tuple[int | None, str]:
     """当前值在历史序列（不含当期）中的百分位与位置标签。"""
     samples = len(series)
-    if samples < MIN_SAMPLES:
+    if samples < min_samples:
         return None, "样本不足"
     latest = series[-1][0]
     prior = [value for value, _ in series[:-1]]

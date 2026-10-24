@@ -151,6 +151,26 @@ def test_build_report_data_outputs_companies_and_lags(
     assert data["rules"][1]["type_label"] == "一般组合"
 
 
+def test_build_report_data_outputs_valuation(
+    seeded: sqlite3.Connection, config: ChainConfig
+) -> None:
+    upsert_metric(seeded, "600519", "2026-10-20", "pe_ttm", 22.5)
+
+    data = build_report_data(config, seeded, "600519")
+
+    assert [item["id"] for item in data["valuation"]] == [
+        "pe_ttm",
+        "pb_mrq",
+        "ps_ttm",
+        "pcf_ncf_ttm",
+    ]
+    pe = data["valuation"][0]
+    assert pe["value"] == 22.5
+    assert pe["metric_date"] == "2026-10-20"
+    assert pe["pct_label"] == "样本不足"
+    assert data["valuation"][1]["pct_label"] == "无数据"
+
+
 def test_report_log_roundtrip(seeded: sqlite3.Connection) -> None:
     payload = {"chain": "白酒", "summary": "示例"}
     insert_report(seeded, "白酒", payload, "2026-10-23T10:00:00")

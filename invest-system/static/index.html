@@ -1060,6 +1060,9 @@
     #companyWrap .data-table th:nth-child(-n+5),
     #companyWrap .data-table td:nth-child(-n+5) { white-space: nowrap; }
     #companyWrap .data-table td:last-child { min-width: 160px; }
+    #valuationWrap .data-table { min-width: 0; }
+    #valuationWrap .data-table th,
+    #valuationWrap .data-table td { padding-left: 6px; padding-right: 6px; }
     .rule-head { display: block; }
     .rule-head .rule-cond { display: block; margin-top: 4px; }
     .rule-state { display: block; margin: 4px 0 0; }
@@ -1188,6 +1191,25 @@
 
       <section class="section">
         <div class="section-head">
+          <h2>估值分位对照</h2>
+          <span class="section-meta" id="valuationMeta">近五年日频分位，仅作历史对照</span>
+        </div>
+        <div class="table-wrap" id="valuationWrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>指标</th><th>最新值</th><th>历史分位</th><th>样本</th><th>数据日期</th>
+              </tr>
+            </thead>
+            <tbody id="valuationBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="valuationEmpty">暂无估值数据</div>
+        <p class="footnote">估值分位按近五年日频数据计算，低位不等于低估，需结合盈利与现金流判断。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
           <h2>传导路径与滞后</h2>
           <span class="section-meta" id="transmissionMeta">按传导顺序，标注相邻环节的滞后天数</span>
         </div>
@@ -1286,6 +1308,7 @@
             <li>先看数据日期与覆盖，无数据占比高时不宜下结论</li>
             <li>单点异常看「关注」，跨期连续异常才看「触发」</li>
             <li>历史分位只说明当前位置，需结合规则方向判断哪一端才是压力</li>
+            <li>估值分位用近五年日频数据对照，低位不等于低估，需结合盈利质量判断</li>
             <li>组合规则成立说明多个环节同时异常，传导更可信</li>
             <li>量价库存组合同时覆盖价格、库存与量能，三向一致时信号更可靠</li>
             <li>传导滞后越短，指标对报表的前瞻价值越高</li>
@@ -1315,6 +1338,8 @@
           <dd>同时约束价格、库存与量能三类指标的规则，避免只看单一维度误判。</dd>
           <dt>传导滞后</dt>
           <dd>相邻环节之间的时间差，按天标注，用于判断指标领先或滞后于报表。</dd>
+          <dt>估值分位</dt>
+          <dd>市盈率、市净率等估值指标在近五年日频数据中的百分位，样本不足 250 个交易日不计算，仅作历史对照。</dd>
           <dt>卡点</dt>
           <dd>利润集中、切换与复制难度高的环节，分数越高越难绕开。</dd>
           <dt>paradox</dt>
@@ -1515,6 +1540,45 @@
     setText(refs.streak, item.streak >= 2 ? "连续 " + item.streak + " 期" : "");
     refs.dot.className = "status-dot " + item.status;
     refs.status.className = "cell-status " + item.status;
+  }
+
+  function createValuationRow() {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const name = element("div", "cell-name");
+    const id = element("div", "cell-sub");
+    nameCell.append(name, id);
+    const valueCell = document.createElement("td");
+    const value = element("span", "cell-num");
+    const unit = element("span", "cell-unit");
+    valueCell.append(value, unit);
+    const pctCell = document.createElement("td");
+    const pct = element("span", "pct-tag");
+    pctCell.append(pct);
+    const samples = element("td", "cell-muted cell-num");
+    const date = element("td", "cell-muted cell-num");
+    row.append(nameCell, valueCell, pctCell, samples, date);
+    row._refs = { name, id, value, unit, pct, samples, date };
+    return row;
+  }
+
+  function updateValuationRow(row, item) {
+    const refs = row._refs;
+    setText(refs.name, item.name);
+    setText(refs.id, item.id);
+    setText(refs.value, item.value_text);
+    setText(refs.unit, item.value === null ? "" : item.unit || "");
+    if (item.pct_rank === null || item.pct_rank === undefined) {
+      refs.pct.className = "pct-tag none";
+      setText(refs.pct, item.pct_label || "样本不足");
+    } else {
+      const tone = item.pct_label === "高位" ? "high" : item.pct_label === "低位" ? "low" : "mid";
+      refs.pct.className = "pct-tag " + tone;
+      setText(refs.pct, item.pct_label + " " + item.pct_rank + "%");
+    }
+    refs.pct.title = item.note || "";
+    setText(refs.samples, item.samples ? item.samples + " 期" : "—");
+    setText(refs.date, item.metric_date || "—");
   }
 
   function createMetaItem() {
@@ -1767,6 +1831,9 @@
     renderChainOverview();
 
     renderTransmission(data.transmission);
+    const valuation = data.valuation || [];
+    syncKeyed($("valuationBody"), valuation, (item) => item.id, createValuationRow, updateValuationRow);
+    toggleEmpty($("valuationWrap"), $("valuationEmpty"), valuation.length > 0, "暂无估值数据");
     const rules = data.rules || [];
     syncKeyed($("ruleList"), rules, (item) => item.cond, createRuleCard, updateRuleCard);
     toggleEmpty($("ruleList"), $("rulesEmpty"), rules.length > 0, "暂无组合规则");
