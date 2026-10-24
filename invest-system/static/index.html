@@ -1056,6 +1056,130 @@
 
   .cat-expect { font-size: 12px; color: var(--muted); }
 
+  .agent-step {
+    display: flex;
+    gap: 12px;
+    padding: 5px 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+
+  .agent-step:last-child { border-bottom: 0; }
+
+  .agent-step-name { flex: 0 0 96px; color: var(--muted); }
+
+  .agent-step-detail { color: var(--text); }
+
+  .agent-findings { margin-top: 10px; }
+
+  .agent-finding {
+    padding: 8px 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .agent-finding:last-child { border-bottom: 0; }
+
+  .agent-evidence {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--muted);
+  }
+
+  .agent-watch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .agent-watch[hidden] { display: none; }
+
+  .agent-watch-label { font-size: 12px; color: var(--muted); }
+
+  #agentWatch { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .agent-watch-item {
+    padding: 2px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    background: var(--soft);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .agent-ask {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .agent-input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+
+  .agent-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(20, 54, 79, .10);
+  }
+
+  .agent-answer {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: var(--soft);
+  }
+
+  .agent-answer[hidden] { display: none; }
+
+  .agent-answer-text { margin: 0; font-size: 13px; line-height: 1.75; }
+
+  .agent-answer .agent-evidence { margin-top: 6px; }
+
+  .agent-evidence-item { display: block; }
+
+  .agent-answer-meta { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+
+  .eval-summary { font-size: 13px; color: var(--text); }
+
+  .eval-list { margin-top: 8px; }
+
+  .eval-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 5px 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+
+  .eval-row:last-child { border-bottom: 0; }
+
+  .eval-chain { flex: 0 0 96px; font-weight: 500; }
+
+  .eval-score { font-family: var(--mono); color: var(--muted); }
+
+  .eval-score.bad { color: var(--alert); }
+
+  .eval-detail { color: var(--muted); }
+
   .cell-code { font-family: var(--mono); color: var(--muted); }
 
   .choke-table { min-width: 620px; }
@@ -1390,6 +1514,9 @@
     .catalyst-form label { flex: 1 1 100%; }
     .thesis-actions-row { margin-left: 0; }
     .catalyst-table { min-width: 760px; }
+    .agent-step-name { flex: 0 0 76px; }
+    .agent-ask { flex-direction: column; }
+    .eval-chain { flex: 0 0 100%; }
   }
 </style>
 </head>
@@ -1651,6 +1778,43 @@
         </div>
         <div class="empty" id="catalystEmpty">暂无催化剂</div>
         <p class="footnote">催化剂的临近与逾期按事件日期计算，只提醒何时该看什么，不预测事件结果。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>研究 Agent</h2>
+          <span class="section-meta" id="agentMeta">固定工具序列 · 结论带证据</span>
+          <button class="text-btn" id="agentRun" type="button">重新运行</button>
+        </div>
+        <div class="agent-trace" id="agentTrace"></div>
+        <div class="agent-findings" id="agentFindings"></div>
+        <div class="empty" id="agentEmpty">暂无运行结果</div>
+        <div class="agent-watch" id="agentWatchWrap" hidden>
+          <span class="agent-watch-label">观察清单</span>
+          <span id="agentWatch"></span>
+        </div>
+        <div class="agent-ask">
+          <input class="agent-input" id="agentQuestion" maxlength="200"
+                 placeholder="基于当前数据追问，如：现在最该跟踪哪个环节？">
+          <button class="chain-load" id="agentAsk" type="button">提问</button>
+        </div>
+        <p class="scenario-note" id="agentNote"></p>
+        <div class="agent-answer" id="agentAnswer" hidden>
+          <p class="agent-answer-text" id="agentAnswerText"></p>
+          <div class="agent-evidence" id="agentAnswerEvidence"></div>
+          <p class="agent-answer-meta" id="agentAnswerMeta"></p>
+        </div>
+        <p class="footnote">Agent 只按固定工具序列汇总已算好的数据，追问答案必须引用真实指标，不构成投资建议。</p>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>评测集</h2>
+          <span class="section-meta" id="evalMeta">研究链路与研报的确定性检查</span>
+          <button class="text-btn" id="evalRun" type="button">运行评测</button>
+        </div>
+        <div class="eval-summary" id="evalSummary">尚未运行，点击「运行评测」检查全部产业链。</div>
+        <div class="eval-list" id="evalList"></div>
       </section>
 
       <section class="section">
@@ -2734,6 +2898,131 @@
     }
   }
 
+  function renderAgent(run) {
+    const data = run || {};
+    const steps = data.steps || [];
+    const trace = $("agentTrace");
+    trace.textContent = "";
+    for (const step of steps) {
+      const row = element("div", "agent-step");
+      row.append(
+        element("span", "agent-step-name", step.label),
+        element("span", "agent-step-detail", step.detail)
+      );
+      trace.appendChild(row);
+    }
+    const findings = data.findings || [];
+    const list = $("agentFindings");
+    list.textContent = "";
+    for (const item of findings) {
+      const wrap = element("div", "agent-finding", item.text);
+      if (item.evidence && item.evidence.length) {
+        wrap.appendChild(element("span", "agent-evidence", "证据：" + item.evidence.join("；")));
+      }
+      list.appendChild(wrap);
+    }
+    toggleEmpty(trace, $("agentEmpty"), steps.length > 0, "暂无运行结果");
+    list.hidden = findings.length === 0;
+
+    const watch = data.watch || [];
+    $("agentWatchWrap").hidden = watch.length === 0;
+    const watchBox = $("agentWatch");
+    watchBox.textContent = "";
+    for (const text of watch) watchBox.appendChild(element("span", "agent-watch-item", text));
+
+    const stamp = data.generated_at ? data.generated_at.slice(0, 16).replace("T", " ") : "—";
+    setText($("agentMeta"), stamp + " · " + (data.elapsed_ms ?? "—") + " ms");
+  }
+
+  async function loadAgent() {
+    if (!state.chain) return;
+    setText($("agentMeta"), "运行中…");
+    try {
+      renderAgent(await getJSON("/api/chain/" + encodeURIComponent(state.chain) + "/agent"));
+    } catch (err) {
+      setText($("agentMeta"), "运行失败：" + err.message);
+    }
+  }
+
+  async function askAgent() {
+    if (!state.chain) return;
+    const question = $("agentQuestion").value.trim();
+    if (!question) {
+      setText($("agentNote"), "请输入问题");
+      $("agentQuestion").focus();
+      return;
+    }
+    const button = $("agentAsk");
+    button.disabled = true;
+    setText($("agentNote"), "思考中…");
+    $("agentAnswer").hidden = true;
+    try {
+      const data = await postJSON(
+        "/api/chain/" + encodeURIComponent(state.chain) + "/ask", { question }
+      );
+      setText($("agentAnswerText"), data.answer);
+      const evidence = $("agentAnswerEvidence");
+      evidence.textContent = "";
+      for (const item of data.evidence || []) {
+        evidence.appendChild(element("span", "agent-evidence-item", "证据：" + item));
+      }
+      const meta = [];
+      if (data.watch_next) meta.push("下一步观察：" + data.watch_next);
+      if (data.unknown && data.unknown.length) meta.push("数据缺口：" + data.unknown.join("；"));
+      if (data.data_date) meta.push("数据日期 " + data.data_date);
+      meta.push("不构成投资建议");
+      setText($("agentAnswerMeta"), meta.join(" · "));
+      $("agentAnswer").hidden = false;
+      setText($("agentNote"), "");
+    } catch (err) {
+      setText($("agentNote"), "提问失败：" + err.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function renderEvaluation(result) {
+    const data = result || {};
+    const cases = data.cases || [];
+    const stamp = data.generated_at ? data.generated_at.slice(0, 16).replace("T", " ") : "—";
+    setText($("evalMeta"), stamp + " · " + (data.chain_count || 0) + " 条链");
+    setText(
+      $("evalSummary"),
+      "通过 " + (data.passed || 0) + "/" + (data.total || 0) + " 项检查，得分 " + (data.score ?? 0) + " 分"
+        + (data.failed ? "；有 " + data.failed + " 项未通过" : "；全部通过")
+    );
+    const list = $("evalList");
+    list.textContent = "";
+    for (const item of cases) {
+      const row = element("div", "eval-row");
+      row.appendChild(element("span", "eval-chain", item.chain));
+      row.appendChild(
+        element("span", "eval-score" + (item.failed ? " bad" : ""), item.passed + "/" + item.total)
+      );
+      const checks = item.checks || [];
+      const failed = checks.filter((check) => check.status === "fail");
+      const skipped = checks.filter((check) => check.status === "skip").length;
+      const detail = failed.length
+        ? failed.map((check) => check.label + "：" + check.detail).join("；")
+        : "全部通过" + (skipped ? "（" + skipped + " 项跳过）" : "");
+      row.appendChild(element("span", "eval-detail", detail));
+      list.appendChild(row);
+    }
+  }
+
+  async function runEvaluation() {
+    const button = $("evalRun");
+    button.disabled = true;
+    setText($("evalSummary"), "评测中…");
+    try {
+      renderEvaluation(await getJSON("/api/eval"));
+    } catch (err) {
+      setText($("evalSummary"), "评测失败：" + err.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function applySignals(data) {
     const signals = data.signals || [];
     syncKeyed($("signalList"), signals, (item) => item.id, createSignalRow, updateSignalRow);
@@ -3059,6 +3348,7 @@
       updateTitle(state.chain);
       renderChainList();
       await loadAll();
+      await loadAgent();
     } catch (err) {
       setText($("subtitle"), "加载失败：" + err.message);
       ["triggers", "signals", "judgments", "chokes"].forEach((key) => {
@@ -3088,6 +3378,9 @@
     state.triggers = [];
     state.signalsLimit = 10;
     state.scenarioCustom = false;
+    $("agentAnswer").hidden = true;
+    $("agentWatchWrap").hidden = true;
+    setText($("agentNote"), "");
     $("chainInput").value = chain;
     updateTitle(chain);
     renderChainList();
@@ -3097,6 +3390,7 @@
     setText($("railSummary"), "加载中");
     setText($("railWatch"), "加载中");
     loadAll();
+    loadAgent();
   }
 
   $("chainLoad").addEventListener("click", () => loadChain($("chainInput").value));
@@ -3123,6 +3417,16 @@
   });
 
   $("catalystSubmit").addEventListener("click", () => submitCatalyst());
+
+  $("agentRun").addEventListener("click", () => loadAgent());
+  $("agentAsk").addEventListener("click", () => askAgent());
+  $("agentQuestion").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      askAgent();
+    }
+  });
+  $("evalRun").addEventListener("click", () => runEvaluation());
 
   $("scenarioShock").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

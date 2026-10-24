@@ -34,6 +34,8 @@ from src.db import (
     insert_report,
     now_iso,
 )
+from src.agent import MAX_QUESTION, AgentError, ask, research_run
+from src.evaluate import evaluate_chains
 from src.metrics_import import import_metrics_text
 from src.models import ChainConfig
 from src.report import ReportError, build_report_data, generate_report
@@ -498,6 +500,43 @@ def change_catalyst_status(name: str, catalyst_id: int, payload: dict[str, Any])
             return set_catalyst_status(conn, config.chain_name, catalyst_id, payload or {})
         except ThesisError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/chain/{name}/agent")
+def chain_agent(name: str) -> dict[str, Any]:
+    """按固定工具序列运行研究 Agent，返回运行记录与结论。"""
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        return research_run(config, conn, SYMBOL)
+
+
+@app.post("/api/chain/{name}/ask")
+def chain_ask(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """基于已算好的事实回答追问，答案必须引用真实指标。"""
+    question = str((payload or {}).get("question", "")).strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="问题不能为空")
+    if len(question) > MAX_QUESTION:
+        raise HTTPException(status_code=400, detail=f"问题不能超过 {MAX_QUESTION} 字")
+    config = _load_chain(name)
+    with closing(_connect()) as conn:
+        try:
+            return ask(config, conn, SYMBOL, question)
+        except AgentError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/eval")
+def eval_report() -> dict[str, Any]:
+    """对全部产业链运行确定性评测集。"""
+    configs: list[ChainConfig] = []
+    for name, path in sorted(_chain_paths().items()):
+        try:
+            configs.append(load_chain_config(str(path)))
+        except Exception as exc:  # noqa: BLE001 - 单条配置异常不阻塞整体评测
+            logger.warning("[eval] 跳过 %s: %s", name, exc)
+    with closing(_connect()) as conn:
+        return evaluate_chains(configs, conn, SYMBOL)
 
 
 @app.post("/api/chain/{name}/metrics")

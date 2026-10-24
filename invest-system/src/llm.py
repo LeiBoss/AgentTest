@@ -24,7 +24,10 @@ class LLMError(RuntimeError):
 
 def call_llm(system_prompt: str, user_payload: dict, max_retries: int = 2) -> dict:
     """调用 DeepSeek 并返回 JSON 对象，失败重试后抛 LLMError。"""
-    client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), base_url=BASE_URL)
+    try:
+        client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), base_url=BASE_URL)
+    except Exception as exc:  # noqa: BLE001 - 缺少密钥等初始化异常统一转为 LLMError
+        raise LLMError("大模型客户端不可用，请检查 DEEPSEEK_API_KEY 是否配置") from exc
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},

@@ -15,11 +15,15 @@ from app import (
     _trigger_payload,
     add_catalyst,
     add_thesis,
+    chain_agent,
+    chain_ask,
     chain_scenario,
     chain_thesis,
     change_catalyst_status,
     change_thesis_status,
+    eval_report,
 )
+from src.agent import AgentError
 from src.db import init_db, upsert_metric
 from src.models import ChainConfig
 
@@ -136,3 +140,46 @@ def test_add_catalyst_returns_400_for_bad_date(chain_app: ChainConfig) -> None:
 
     assert exc_info.value.status_code == 400
     assert "YYYY-MM-DD" in str(exc_info.value.detail)
+
+
+def test_agent_endpoint_returns_trace(chain_app: ChainConfig) -> None:
+    run = chain_agent(chain_app.chain_name)
+
+    assert run["chain"] == chain_app.chain_name
+    assert len(run["steps"]) == 7
+    assert run["findings"]
+
+
+def test_ask_endpoint_rejects_empty_question(chain_app: ChainConfig) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        chain_ask(chain_app.chain_name, {"question": "  "})
+
+    assert exc_info.value.status_code == 400
+    assert "问题不能为空" in str(exc_info.value.detail)
+
+
+def test_ask_endpoint_maps_agent_error_to_502(
+    chain_app: ChainConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(config, conn, symbol, question):
+        raise AgentError("LLM 调用失败：超时")
+
+    monkeypatch.setattr("app.ask", boom)
+
+    with pytest.raises(HTTPException) as exc_info:
+        chain_ask(chain_app.chain_name, {"question": "现在能看什么？"})
+
+    assert exc_info.value.status_code == 502
+    assert "LLM 调用失败" in str(exc_info.value.detail)
+
+
+def test_eval_endpoint_uses_configured_chains(
+    chain_app: ChainConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app._chain_paths", lambda: {chain_app.chain_name: Path("baijiu.yaml")})
+    monkeypatch.setattr("app.load_chain_config", lambda path: chain_app)
+
+    result = eval_report()
+
+    assert result["chain_count"] == 1
+    assert result["score"] == 100.0

@@ -301,7 +301,7 @@ def _norm_text(text: str) -> str:
     return _PUNCT_RE.sub("", text).lower()
 
 
-def _cites_trigger(item: str, ids: list[str], names: list[str]) -> bool:
+def cites_trigger(item: str, ids: list[str], names: list[str]) -> bool:
     """evidence 只要包含某个 trigger id 或指标名称（忽略标点与大小写）即视为可验证。"""
     lower = item.lower()
     for trigger_id in ids:
@@ -332,7 +332,7 @@ def _validate_narrative(result: Any, config: ChainConfig) -> dict[str, Any]:
     valid = [
         item
         for item in evidence
-        if isinstance(item, str) and item.strip() and _cites_trigger(item, ids, names)
+        if isinstance(item, str) and item.strip() and cites_trigger(item, ids, names)
     ]
     if len(valid) < 3:
         raise ReportError(
